@@ -19,7 +19,6 @@ export default function SupplierForm({ supplier, onClose }: Props) {
     nombre: "",
     telefono: "",
     direccion: "",
-    notas: "",
   });
 
   useEffect(() => {
@@ -28,7 +27,6 @@ export default function SupplierForm({ supplier, onClose }: Props) {
         nombre: supplier.nombre,
         telefono: supplier.telefono ?? "",
         direccion: supplier.direccion ?? "",
-        notas: supplier.notas ?? "",
       });
     }
   }, [supplier]);
@@ -50,7 +48,6 @@ export default function SupplierForm({ supplier, onClose }: Props) {
       nombre: form.nombre.trim(),
       telefono: form.telefono.trim() || null,
       direccion: form.direccion.trim() || null,
-      notas: form.notas.trim() || null,
     };
 
     if (supplier) {
@@ -119,17 +116,6 @@ export default function SupplierForm({ supplier, onClose }: Props) {
           placeholder="Dirección"
           value={form.direccion}
           onChange={(e) => set("direccion", e.target.value)}
-        />
-      </div>
-
-      <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">Notas</label>
-        <textarea
-          className={`${inputClass} resize-none`}
-          rows={2}
-          placeholder="Opcional"
-          value={form.notas}
-          onChange={(e) => set("notas", e.target.value)}
         />
       </div>
 

@@ -40,16 +40,16 @@ export default function ReportsPage() {
       const supabase = createClient();
       let from: string | null = null;
 
-      if (period === "today") from = getStartOfDay().toISOString();
-      else if (period === "week") from = getStartOfWeek().toISOString();
-      else if (period === "month") from = getStartOfMonth().toISOString();
+      if (period === "today") from = getStartOfDay();
+      else if (period === "week") from = getStartOfWeek();
+      else if (period === "month") from = getStartOfMonth();
 
-      let salesQuery = supabase.from("ventas").select("cantidad, precio_venta");
+      let salesQuery = supabase.from("ventas").select("cantidad, total");
       let arrivalsQuery = supabase.from("llegadas").select("cantidad, precio_compra");
 
       if (from) {
-        salesQuery = salesQuery.gte("created_at", from);
-        arrivalsQuery = arrivalsQuery.gte("created_at", from);
+        salesQuery = salesQuery.gte("fecha", from);
+        arrivalsQuery = arrivalsQuery.gte("fecha", from);
       }
 
       const [{ data: sales }, { data: arrivals }] = await Promise.all([
@@ -58,7 +58,7 @@ export default function ReportsPage() {
       ]);
 
       const totalSales = (sales ?? []).reduce(
-        (sum, s: any) => sum + s.precio_venta * s.cantidad,
+        (sum, s: any) => sum + (s.total ?? 0),
         0
       );
       const totalArrivals = (arrivals ?? []).reduce(

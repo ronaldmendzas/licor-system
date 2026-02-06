@@ -52,7 +52,8 @@ export default function SaleForm({ onClose }: Props) {
     const { error } = await supabase.from("ventas").insert({
       producto_id: selected.id,
       cantidad: qty,
-      precio_venta: selected.precio_venta,
+      precio_unitario: selected.precio_venta,
+      total: selected.precio_venta * qty,
     });
 
     if (error) {

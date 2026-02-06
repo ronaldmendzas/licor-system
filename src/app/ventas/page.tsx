@@ -14,8 +14,9 @@ import { formatBs, formatDateTime } from "@/lib/utils";
 interface SaleRecord {
   id: string;
   cantidad: number;
-  precio_venta: number;
-  created_at: string;
+  precio_unitario: number;
+  total: number;
+  fecha: string;
   productos: { nombre: string } | null;
 }
 
@@ -29,8 +30,8 @@ export default function SalesPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from("ventas")
-      .select("id, cantidad, precio_venta, created_at, productos(nombre)")
-      .order("created_at", { ascending: false })
+      .select("id, cantidad, precio_unitario, total, fecha, productos(nombre)")
+      .order("fecha", { ascending: false })
       .limit(50);
     setSales((data as any) ?? []);
   }
@@ -80,11 +81,11 @@ export default function SalesPage() {
                     {s.productos?.nombre ?? "Producto"}
                   </p>
                   <p className="text-xs text-zinc-500">
-                    {s.cantidad} uds · {formatDateTime(s.created_at)}
+                    {s.cantidad} uds · {formatDateTime(s.fecha)}
                   </p>
                 </div>
                 <p className="text-sm font-semibold text-emerald-400 shrink-0">
-                  +{formatBs(s.precio_venta * s.cantidad)}
+                  +{formatBs(s.total)}
                 </p>
               </div>
             ))}

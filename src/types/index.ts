@@ -17,14 +17,14 @@ export interface Product {
   activo: boolean;
   created_at: string;
   updated_at: string;
-  categoria?: Category;
+  categorias?: Category;
 }
 
 export interface Supplier {
   id: string;
   nombre: string;
-  telefono: string;
-  direccion: string;
+  telefono: string | null;
+  direccion: string | null;
   created_at: string;
 }
 
@@ -49,7 +49,7 @@ export interface Sale {
   total: number;
   fecha: string;
   created_at: string;
-  producto?: Product;
+  productos?: Product;
 }
 
 export interface Loan {
@@ -62,7 +62,7 @@ export interface Loan {
   fecha_prestamo: string;
   fecha_devolucion: string | null;
   created_at: string;
-  producto?: Product;
+  productos?: Product;
 }
 
 export type StockLevel = "critical" | "low" | "normal";
@@ -81,8 +81,10 @@ export interface DailySummary {
 }
 
 export interface RecentMovement {
-  type: "sale" | "arrival" | "loan";
-  description: string;
-  date: string;
+  id: string;
+  type: "sale" | "arrival";
+  productName: string;
   quantity: number;
+  total: number;
+  date: string;
 }

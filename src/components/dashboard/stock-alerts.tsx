@@ -20,6 +20,7 @@ export default function StockAlerts() {
             : p.stock_actual <= p.stock_minimo * 0.5
             ? ("critical" as const)
             : ("low" as const),
+        percentage: p.stock_minimo > 0 ? Math.round((p.stock_actual / p.stock_minimo) * 100) : 0,
       }))
       .sort((a, b) => a.product.stock_actual - b.product.stock_actual)
       .slice(0, 5);

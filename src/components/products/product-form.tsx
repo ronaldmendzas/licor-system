@@ -19,8 +19,6 @@ const EMPTY = {
   precio_venta: "",
   stock_actual: "",
   stock_minimo: "",
-  unidad: "botella",
-  descripcion: "",
 };
 
 export default function ProductForm({ product, onClose }: Props) {
@@ -38,8 +36,6 @@ export default function ProductForm({ product, onClose }: Props) {
         precio_venta: product.precio_venta.toString(),
         stock_actual: product.stock_actual.toString(),
         stock_minimo: product.stock_minimo.toString(),
-        unidad: product.unidad,
-        descripcion: product.descripcion ?? "",
       });
     }
   }, [product]);
@@ -63,8 +59,6 @@ export default function ProductForm({ product, onClose }: Props) {
       precio_venta: parseFloat(form.precio_venta),
       stock_actual: parseInt(form.stock_actual) || 0,
       stock_minimo: parseInt(form.stock_minimo) || 0,
-      unidad: form.unidad,
-      descripcion: form.descripcion.trim() || null,
     };
 
     if (product) {
@@ -178,32 +172,6 @@ export default function ProductForm({ product, onClose }: Props) {
             onChange={(e) => set("stock_minimo", e.target.value)}
           />
         </div>
-      </div>
-
-      <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">Unidad</label>
-        <select
-          className={inputClass}
-          value={form.unidad}
-          onChange={(e) => set("unidad", e.target.value)}
-        >
-          <option value="botella">Botella</option>
-          <option value="lata">Lata</option>
-          <option value="six_pack">Six Pack</option>
-          <option value="caja">Caja</option>
-          <option value="otro">Otro</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">Descripción</label>
-        <textarea
-          className={`${inputClass} resize-none`}
-          rows={2}
-          placeholder="Opcional"
-          value={form.descripcion}
-          onChange={(e) => set("descripcion", e.target.value)}
-        />
       </div>
 
       <div className="flex gap-2 pt-2">

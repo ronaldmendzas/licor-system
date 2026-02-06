@@ -30,7 +30,7 @@ export default function LoansPage() {
     const supabase = createClient();
     const { error } = await supabase
       .from("prestamos")
-      .update({ devuelto: true })
+      .update({ estado: "devuelto" })
       .eq("id", loan.id);
     if (error) {
       toast.error("Error al actualizar");
@@ -46,8 +46,8 @@ export default function LoansPage() {
 
   if (loading) return <LoadingScreen />;
 
-  const pending = loans.filter((l) => !l.devuelto);
-  const returned = loans.filter((l) => l.devuelto);
+  const pending = loans.filter((l) => l.estado === "pendiente");
+  const returned = loans.filter((l) => l.estado === "devuelto");
 
   return (
     <AppShell>
@@ -88,7 +88,7 @@ export default function LoansPage() {
                         {l.productos?.nombre ?? "Producto"}
                       </p>
                       <p className="text-xs text-zinc-500">
-                        {l.cantidad} uds · {l.persona} · {formatDateTime(l.created_at)}
+                        {l.cantidad} uds · {l.persona} · {formatDateTime(l.fecha_prestamo)}
                       </p>
                     </div>
                     <Button

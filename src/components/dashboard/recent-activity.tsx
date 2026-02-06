@@ -16,13 +16,13 @@ export default function RecentActivity() {
       const [{ data: sales }, { data: arrivals }] = await Promise.all([
         supabase
           .from("ventas")
-          .select("id, producto_id, cantidad, precio_venta, created_at, productos(nombre)")
-          .order("created_at", { ascending: false })
+          .select("id, producto_id, cantidad, precio_unitario, total, fecha, productos(nombre)")
+          .order("fecha", { ascending: false })
           .limit(5),
         supabase
           .from("llegadas")
-          .select("id, producto_id, cantidad, precio_compra, created_at, productos(nombre)")
-          .order("created_at", { ascending: false })
+          .select("id, producto_id, cantidad, precio_compra, fecha, productos(nombre)")
+          .order("fecha", { ascending: false })
           .limit(5),
       ]);
 
@@ -34,8 +34,8 @@ export default function RecentActivity() {
           type: "sale",
           productName: s.productos?.nombre ?? "Producto",
           quantity: s.cantidad,
-          total: s.precio_venta * s.cantidad,
-          date: s.created_at,
+          total: s.total ?? (s.precio_unitario * s.cantidad),
+          date: s.fecha,
         });
       });
 
@@ -46,7 +46,7 @@ export default function RecentActivity() {
           productName: a.productos?.nombre ?? "Producto",
           quantity: a.cantidad,
           total: a.precio_compra * a.cantidad,
-          date: a.created_at,
+          date: a.fecha,
         });
       });
 

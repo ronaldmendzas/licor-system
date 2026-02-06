@@ -44,7 +44,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const supabase = createClient();
     const { data } = await supabase
       .from("productos")
-      .select("*, categoria:categorias(*)")
+      .select("*, categorias(*)")
       .eq("activo", true)
       .order("nombre");
     if (data) set({ products: data });
@@ -60,7 +60,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const supabase = createClient();
     const { data } = await supabase
       .from("prestamos")
-      .select("*, producto:productos(*)")
+      .select("*, productos(*)")
       .order("fecha_prestamo", { ascending: false });
     if (data) set({ loans: data });
   },
