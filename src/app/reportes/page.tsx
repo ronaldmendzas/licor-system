@@ -1,181 +1,138 @@
 "use client";
 
-import { useState } from "react";
-import ShellApp from "@/components/layout/shell-app";
+import { useEffect, useState } from "react";
+import AppShell from "@/components/layout/app-shell";
 import { useAppStore } from "@/store/app-store";
+import { LoadingScreen } from "@/components/ui/loading";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import { formatearBs, obtenerInicioMes, obtenerInicioSemana, obtnerInicioDelDia } from "@/lib/utils";
-import Boton from "@/components/ui/boton";
-import Tarjeta from "@/components/ui/tarjeta";
-import { FileText, Download, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { formatBs, formatDate, getStartOfDay, getStartOfWeek, getStartOfMonth } from "@/lib/utils";
+import { FileText, Download } from "lucide-react";
 
-export default function PaginaReportes() {
-  const productos = useAppStore((s) => s.productos);
-  const [generando, setGenerando] = useState<string | null>(null);
+type Period = "today" | "week" | "month" | "all";
 
-  async function generarReporteInventario() {
-    setGenerando("inventario");
-    try {
-      const { default: jsPDF } = await import("jspdf");
-      const doc = new jsPDF();
+interface ReportData {
+  totalSales: number;
+  salesCount: number;
+  totalArrivals: number;
+  arrivalsCount: number;
+  profit: number;
+}
 
-      doc.setFontSize(20);
-      doc.text("Licor System - Reporte de Inventario", 20, 20);
-      doc.setFontSize(10);
-      doc.text(`Generado: ${new Date().toLocaleDateString("es-BO")}`, 20, 28);
+export default function ReportsPage() {
+  const loading = useAppStore((s) => s.loading);
+  const loadAll = useAppStore((s) => s.loadAll);
+  const [period, setPeriod] = useState<Period>("today");
+  const [data, setData] = useState<ReportData>({
+    totalSales: 0,
+    salesCount: 0,
+    totalArrivals: 0,
+    arrivalsCount: 0,
+    profit: 0,
+  });
 
-      doc.setFontSize(12);
-      doc.text("Resumen General", 20, 40);
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
 
-      const totalInversion = productos.reduce((s, p) => s + p.precio_compra * p.stock_actual, 0);
-      const totalVenta = productos.reduce((s, p) => s + p.precio_venta * p.stock_actual, 0);
-      const totalGanancia = totalVenta - totalInversion;
-
-      doc.setFontSize(10);
-      doc.text(`Total productos: ${productos.length}`, 20, 48);
-      doc.text(`Inversión en stock: ${formatearBs(totalInversion)}`, 20, 54);
-      doc.text(`Valor de venta potencial: ${formatearBs(totalVenta)}`, 20, 60);
-      doc.text(`Ganancia potencial: ${formatearBs(totalGanancia)}`, 20, 66);
-
-      let y = 80;
-      doc.setFontSize(12);
-      doc.text("Detalle de Productos", 20, y);
-      y += 10;
-
-      doc.setFontSize(8);
-      doc.text("Producto", 20, y);
-      doc.text("Stock", 100, y);
-      doc.text("Mín", 115, y);
-      doc.text("P.Compra", 130, y);
-      doc.text("P.Venta", 155, y);
-      doc.text("Estado", 180, y);
-      y += 6;
-
-      for (const p of productos) {
-        if (y > 280) {
-          doc.addPage();
-          y = 20;
-        }
-        const estado = p.stock_actual <= p.stock_minimo ? "CRITICO" : p.stock_actual <= p.stock_minimo * 1.2 ? "BAJO" : "OK";
-        doc.text(p.nombre.substring(0, 35), 20, y);
-        doc.text(p.stock_actual.toString(), 100, y);
-        doc.text(p.stock_minimo.toString(), 115, y);
-        doc.text(formatearBs(p.precio_compra), 130, y);
-        doc.text(formatearBs(p.precio_venta), 155, y);
-        doc.text(estado, 180, y);
-        y += 5;
-      }
-
-      doc.save("reporte-inventario.pdf");
-      toast.success("Reporte descargado");
-    } catch {
-      toast.error("Error al generar reporte");
-    }
-    setGenerando(null);
-  }
-
-  async function generarReporteVentas() {
-    setGenerando("ventas");
-    try {
+  useEffect(() => {
+    async function loadReport() {
       const supabase = createClient();
-      const inicioMes = obtenerInicioMes();
+      let from: string | null = null;
 
-      const { data: ventas } = await supabase
-        .from("ventas")
-        .select("cantidad, total, fecha, producto:productos(nombre)")
-        .gte("fecha", inicioMes)
-        .order("fecha", { ascending: false });
+      if (period === "today") from = getStartOfDay().toISOString();
+      else if (period === "week") from = getStartOfWeek().toISOString();
+      else if (period === "month") from = getStartOfMonth().toISOString();
 
-      const { default: jsPDF } = await import("jspdf");
-      const doc = new jsPDF();
+      let salesQuery = supabase.from("ventas").select("cantidad, precio_venta");
+      let arrivalsQuery = supabase.from("llegadas").select("cantidad, precio_compra");
 
-      doc.setFontSize(20);
-      doc.text("Licor System - Reporte de Ventas", 20, 20);
-      doc.setFontSize(10);
-      doc.text(`Período: Este mes`, 20, 28);
-      doc.text(`Generado: ${new Date().toLocaleDateString("es-BO")}`, 20, 34);
-
-      const totalVentas = ventas?.reduce((s, v) => s + v.total, 0) || 0;
-      const totalProductos = ventas?.reduce((s, v) => s + v.cantidad, 0) || 0;
-
-      doc.setFontSize(12);
-      doc.text("Resumen", 20, 46);
-      doc.setFontSize(10);
-      doc.text(`Total facturado: ${formatearBs(totalVentas)}`, 20, 54);
-      doc.text(`Productos vendidos: ${totalProductos}`, 20, 60);
-      doc.text(`Transacciones: ${ventas?.length || 0}`, 20, 66);
-
-      let y = 80;
-      doc.setFontSize(8);
-      doc.text("Fecha", 20, y);
-      doc.text("Producto", 60, y);
-      doc.text("Cantidad", 130, y);
-      doc.text("Total", 160, y);
-      y += 6;
-
-      for (const v of ventas || []) {
-        if (y > 280) {
-          doc.addPage();
-          y = 20;
-        }
-        doc.text(new Date(v.fecha).toLocaleDateString("es-BO"), 20, y);
-        doc.text(((v.producto as unknown as { nombre: string } | null)?.nombre || "").substring(0, 30), 60, y);
-        doc.text(v.cantidad.toString(), 130, y);
-        doc.text(formatearBs(v.total), 160, y);
-        y += 5;
+      if (from) {
+        salesQuery = salesQuery.gte("created_at", from);
+        arrivalsQuery = arrivalsQuery.gte("created_at", from);
       }
 
-      doc.save("reporte-ventas.pdf");
-      toast.success("Reporte descargado");
-    } catch {
-      toast.error("Error al generar reporte");
-    }
-    setGenerando(null);
-  }
+      const [{ data: sales }, { data: arrivals }] = await Promise.all([
+        salesQuery,
+        arrivalsQuery,
+      ]);
 
-  const reportes = [
-    {
-      id: "inventario",
-      titulo: "Reporte de Inventario",
-      descripcion: "Stock actual, valores, productos críticos",
-      accion: generarReporteInventario,
-    },
-    {
-      id: "ventas",
-      titulo: "Reporte de Ventas",
-      descripcion: "Ventas del mes, totales, desglose",
-      accion: generarReporteVentas,
-    },
+      const totalSales = (sales ?? []).reduce(
+        (sum, s: any) => sum + s.precio_venta * s.cantidad,
+        0
+      );
+      const totalArrivals = (arrivals ?? []).reduce(
+        (sum, a: any) => sum + a.precio_compra * a.cantidad,
+        0
+      );
+
+      setData({
+        totalSales,
+        salesCount: sales?.length ?? 0,
+        totalArrivals,
+        arrivalsCount: arrivals?.length ?? 0,
+        profit: totalSales - totalArrivals,
+      });
+    }
+    loadReport();
+  }, [period]);
+
+  if (loading) return <LoadingScreen />;
+
+  const periods: { key: Period; label: string }[] = [
+    { key: "today", label: "Hoy" },
+    { key: "week", label: "Semana" },
+    { key: "month", label: "Mes" },
+    { key: "all", label: "Todo" },
   ];
 
   return (
-    <ShellApp titulo="Reportes">
-      <div className="space-y-3">
-        <p className="text-sm text-neutral-500">
-          Genera reportes profesionales en PDF
-        </p>
+    <AppShell>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold">Reportes</h1>
+            <p className="text-sm text-zinc-500">Resumen financiero</p>
+          </div>
+          <FileText className="w-5 h-5 text-zinc-600" />
+        </div>
 
-        {reportes.map((r) => (
-          <Tarjeta key={r.id} className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-purple-500/10">
-              <FileText className="w-5 h-5 text-purple-400" />
-            </div>
-            <div className="flex-1">
-              <p className="font-medium text-sm">{r.titulo}</p>
-              <p className="text-xs text-neutral-500">{r.descripcion}</p>
-            </div>
-            <Boton
-              onClick={r.accion}
-              variante="secundario"
-              cargando={generando === r.id}
-              icono={generando === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+        <div className="flex gap-2">
+          {periods.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setPeriod(p.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                period === p.key
+                  ? "bg-violet-500/15 text-violet-400"
+                  : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
+              }`}
             >
-              PDF
-            </Boton>
-          </Tarjeta>
-        ))}
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800/50">
+            <p className="text-xs text-zinc-500 mb-1">Ventas</p>
+            <p className="text-lg font-bold text-emerald-400">{formatBs(data.totalSales)}</p>
+            <p className="text-xs text-zinc-600 mt-1">{data.salesCount} transacciones</p>
+          </div>
+          <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800/50">
+            <p className="text-xs text-zinc-500 mb-1">Compras</p>
+            <p className="text-lg font-bold text-blue-400">{formatBs(data.totalArrivals)}</p>
+            <p className="text-xs text-zinc-600 mt-1">{data.arrivalsCount} llegadas</p>
+          </div>
+        </div>
+
+        <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800/50">
+          <p className="text-xs text-zinc-500 mb-1">Ganancia neta</p>
+          <p className={`text-2xl font-bold ${data.profit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+            {formatBs(data.profit)}
+          </p>
+        </div>
       </div>
-    </ShellApp>
+    </AppShell>
   );
 }

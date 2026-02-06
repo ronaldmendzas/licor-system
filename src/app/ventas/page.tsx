@@ -1,121 +1,100 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import ShellApp from "@/components/layout/shell-app";
+import { useEffect, useState } from "react";
+import { useAppStore } from "@/store/app-store";
+import AppShell from "@/components/layout/app-shell";
+import SaleForm from "@/components/sales/sale-form";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { LoadingScreen } from "@/components/ui/loading";
+import { Plus, ArrowUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { formatearBs, formatearFechaHora, obtnerInicioDelDia, obtenerInicioSemana } from "@/lib/utils";
-import { Plus, ShoppingCart } from "lucide-react";
-import Boton from "@/components/ui/boton";
-import Tarjeta from "@/components/ui/tarjeta";
-import FormularioVenta from "@/components/ventas/formulario-venta";
+import { formatBs, formatDateTime } from "@/lib/utils";
 
-interface VentaConProducto {
+interface SaleRecord {
   id: string;
   cantidad: number;
-  precio_unitario: number;
-  total: number;
-  fecha: string;
-  producto: { nombre: string } | null;
+  precio_venta: number;
+  created_at: string;
+  productos: { nombre: string } | null;
 }
 
-export default function PaginaVentas() {
-  const [ventas, setVentas] = useState<VentaConProducto[]>([]);
-  const [modalAbierto, setModalAbierto] = useState(false);
-  const [filtro, setFiltro] = useState<"hoy" | "semana" | "todas">("hoy");
+export default function SalesPage() {
+  const loading = useAppStore((s) => s.loading);
+  const loadAll = useAppStore((s) => s.loadAll);
+  const [sales, setSales] = useState<SaleRecord[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  async function cargarVentas() {
+  async function loadSales() {
     const supabase = createClient();
-    let query = supabase
+    const { data } = await supabase
       .from("ventas")
-      .select("*, producto:productos(nombre)")
-      .order("fecha", { ascending: false });
-
-    if (filtro === "hoy") {
-      query = query.gte("fecha", obtnerInicioDelDia());
-    } else if (filtro === "semana") {
-      query = query.gte("fecha", obtenerInicioSemana());
-    } else {
-      query = query.limit(50);
-    }
-
-    const { data } = await query;
-    if (data) setVentas(data);
+      .select("id, cantidad, precio_venta, created_at, productos(nombre)")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setSales((data as any) ?? []);
   }
 
   useEffect(() => {
-    cargarVentas();
-  }, [filtro]);
+    loadAll();
+    loadSales();
+  }, [loadAll]);
 
-  const totalVentas = ventas.reduce((sum, v) => sum + v.total, 0);
-  const totalProductos = ventas.reduce((sum, v) => sum + v.cantidad, 0);
+  function handleClose() {
+    setModalOpen(false);
+    loadSales();
+  }
+
+  if (loading) return <LoadingScreen />;
 
   return (
-    <ShellApp titulo="Ventas">
+    <AppShell>
       <div className="space-y-4">
-        <div className="flex gap-2 items-center">
-          <Boton onClick={() => setModalAbierto(true)} icono={<Plus className="w-4 h-4" />}>
-            Nueva venta
-          </Boton>
-        </div>
-
-        <div className="flex gap-2">
-          {(["hoy", "semana", "todas"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFiltro(f)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                filtro === f
-                  ? "bg-purple-600 text-white"
-                  : "bg-neutral-800 text-neutral-400"
-              }`}
-            >
-              {f === "hoy" ? "Hoy" : f === "semana" ? "Semana" : "Todas"}
-            </button>
-          ))}
-        </div>
-
-        <Tarjeta>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-neutral-500">Total vendido</p>
-              <p className="text-xl font-bold text-green-400">{formatearBs(totalVentas)}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-neutral-500">Productos</p>
-              <p className="text-xl font-bold">{totalProductos}</p>
-            </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold">Ventas</h1>
+            <p className="text-sm text-zinc-500">{sales.length} registros</p>
           </div>
-        </Tarjeta>
-
-        <div className="space-y-2">
-          {ventas.map((v) => (
-            <Tarjeta key={v.id} className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <ShoppingCart className="w-4 h-4 text-blue-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {v.cantidad}x {v.producto?.nombre || "Producto"}
-                </p>
-                <p className="text-xs text-neutral-500">{formatearFechaHora(v.fecha)}</p>
-              </div>
-              <p className="text-sm font-medium text-green-400">{formatearBs(v.total)}</p>
-            </Tarjeta>
-          ))}
+          <Button onClick={() => setModalOpen(true)} size="sm">
+            <Plus className="w-4 h-4 mr-1" />
+            Nueva Venta
+          </Button>
         </div>
 
-        {ventas.length === 0 && (
-          <div className="text-center py-12 text-neutral-500">
-            <p className="text-sm">Sin ventas registradas</p>
+        {sales.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-zinc-500 text-sm">No hay ventas registradas</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {sales.map((s) => (
+              <div
+                key={s.id}
+                className="bg-zinc-900 rounded-xl p-3 border border-zinc-800/50 flex items-center gap-3"
+              >
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                  <ArrowUp className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">
+                    {s.productos?.nombre ?? "Producto"}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    {s.cantidad} uds · {formatDateTime(s.created_at)}
+                  </p>
+                </div>
+                <p className="text-sm font-semibold text-emerald-400 shrink-0">
+                  +{formatBs(s.precio_venta * s.cantidad)}
+                </p>
+              </div>
+            ))}
           </div>
         )}
-
-        <FormularioVenta
-          abierto={modalAbierto}
-          onCerrar={() => setModalAbierto(false)}
-          onRegistrada={cargarVentas}
-        />
       </div>
-    </ShellApp>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nueva Venta">
+        <SaleForm onClose={handleClose} />
+      </Modal>
+    </AppShell>
   );
 }

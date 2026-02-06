@@ -1,14 +1,12 @@
-export async function enviarWhatsApp(mensaje: string): Promise<boolean> {
-  const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE?.replace("+", "");
-  const apikey = process.env.NEXT_PUBLIC_CALLMEBOT_APIKEY;
-
-  if (!phone || !apikey) return false;
+export async function sendWhatsApp(message: string): Promise<boolean> {
+  const phone = "59168004297";
+  const apiKey = ""; // CallMeBot API key - set via env
+  const encoded = encodeURIComponent(message);
+  const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encoded}&apikey=${apiKey}`;
 
   try {
-    const texto = encodeURIComponent(mensaje);
-    const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${texto}&apikey=${apikey}`;
-    const response = await fetch(url);
-    return response.ok;
+    const res = await fetch(url);
+    return res.ok;
   } catch {
     return false;
   }

@@ -1,10 +1,10 @@
-export interface Categoria {
+export interface Category {
   id: string;
   nombre: string;
   created_at: string;
 }
 
-export interface Producto {
+export interface Product {
   id: string;
   nombre: string;
   categoria_id: string;
@@ -17,10 +17,10 @@ export interface Producto {
   activo: boolean;
   created_at: string;
   updated_at: string;
-  categoria?: Categoria;
+  categoria?: Category;
 }
 
-export interface Proveedor {
+export interface Supplier {
   id: string;
   nombre: string;
   telefono: string;
@@ -28,7 +28,7 @@ export interface Proveedor {
   created_at: string;
 }
 
-export interface Llegada {
+export interface Arrival {
   id: string;
   producto_id: string;
   proveedor_id: string;
@@ -37,11 +37,11 @@ export interface Llegada {
   numero_factura: string | null;
   fecha: string;
   created_at: string;
-  producto?: Producto;
-  proveedor?: Proveedor;
+  producto?: Product;
+  proveedor?: Supplier;
 }
 
-export interface Venta {
+export interface Sale {
   id: string;
   producto_id: string;
   cantidad: number;
@@ -49,10 +49,10 @@ export interface Venta {
   total: number;
   fecha: string;
   created_at: string;
-  producto?: Producto;
+  producto?: Product;
 }
 
-export interface Prestamo {
+export interface Loan {
   id: string;
   producto_id: string;
   persona: string;
@@ -62,27 +62,27 @@ export interface Prestamo {
   fecha_prestamo: string;
   fecha_devolucion: string | null;
   created_at: string;
-  producto?: Producto;
+  producto?: Product;
 }
 
-export type NivelStock = "critico" | "bajo" | "normal";
+export type StockLevel = "critical" | "low" | "normal";
 
-export interface AlertaStock {
-  producto: Producto;
-  nivel: NivelStock;
-  porcentaje: number;
+export interface StockAlert {
+  product: Product;
+  level: StockLevel;
+  percentage: number;
 }
 
-export interface ResumenDiario {
-  total_ventas: number;
-  cantidad_productos_vendidos: number;
-  ingreso_total: number;
-  productos_top: { nombre: string; cantidad: number }[];
+export interface DailySummary {
+  totalSales: number;
+  productsSold: number;
+  totalRevenue: number;
+  topProducts: { name: string; quantity: number }[];
 }
 
-export interface MovimientoReciente {
-  tipo: "venta" | "llegada" | "prestamo";
-  descripcion: string;
-  fecha: string;
-  cantidad: number;
+export interface RecentMovement {
+  type: "sale" | "arrival" | "loan";
+  description: string;
+  date: string;
+  quantity: number;
 }

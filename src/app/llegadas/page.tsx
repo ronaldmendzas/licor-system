@@ -1,85 +1,104 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import ShellApp from "@/components/layout/shell-app";
+import { useEffect, useState } from "react";
+import { useAppStore } from "@/store/app-store";
+import AppShell from "@/components/layout/app-shell";
+import ArrivalForm from "@/components/arrivals/arrival-form";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { LoadingScreen } from "@/components/ui/loading";
+import { Plus, ArrowDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { formatearBs, formatearFechaHora } from "@/lib/utils";
-import { Plus, Truck } from "lucide-react";
-import Boton from "@/components/ui/boton";
-import Tarjeta from "@/components/ui/tarjeta";
-import FormularioLlegada from "@/components/llegadas/formulario-llegada";
+import { formatBs, formatDateTime } from "@/lib/utils";
 
-interface LlegadaConDetalles {
+interface ArrivalRecord {
   id: string;
   cantidad: number;
   precio_compra: number;
-  numero_factura: string | null;
-  fecha: string;
-  producto: { nombre: string } | null;
-  proveedor: { nombre: string } | null;
+  created_at: string;
+  productos: { nombre: string } | null;
+  proveedores: { nombre: string } | null;
 }
 
-export default function PaginaLlegadas() {
-  const [llegadas, setLlegadas] = useState<LlegadaConDetalles[]>([]);
-  const [modalAbierto, setModalAbierto] = useState(false);
+export default function ArrivalsPage() {
+  const loading = useAppStore((s) => s.loading);
+  const loadAll = useAppStore((s) => s.loadAll);
+  const [arrivals, setArrivals] = useState<ArrivalRecord[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  async function cargarLlegadas() {
+  async function loadArrivals() {
     const supabase = createClient();
     const { data } = await supabase
       .from("llegadas")
-      .select("*, producto:productos(nombre), proveedor:proveedores(nombre)")
-      .order("fecha", { ascending: false })
+      .select("id, cantidad, precio_compra, created_at, productos(nombre), proveedores(nombre)")
+      .order("created_at", { ascending: false })
       .limit(50);
-    if (data) setLlegadas(data);
+    setArrivals((data as any) ?? []);
   }
 
   useEffect(() => {
-    cargarLlegadas();
-  }, []);
+    loadAll();
+    loadArrivals();
+  }, [loadAll]);
+
+  function handleClose() {
+    setModalOpen(false);
+    loadArrivals();
+  }
+
+  if (loading) return <LoadingScreen />;
 
   return (
-    <ShellApp titulo="Llegadas">
+    <AppShell>
       <div className="space-y-4">
-        <Boton onClick={() => setModalAbierto(true)} icono={<Plus className="w-4 h-4" />}>
-          Registrar llegada
-        </Boton>
-
-        <div className="space-y-2">
-          {llegadas.map((l) => (
-            <Tarjeta key={l.id} className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <Truck className="w-4 h-4 text-green-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {l.cantidad}x {l.producto?.nombre || "Producto"}
-                </p>
-                <p className="text-xs text-neutral-500">
-                  {l.proveedor?.nombre || "Sin proveedor"} · {formatearFechaHora(l.fecha)}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-medium">{formatearBs(l.precio_compra * l.cantidad)}</p>
-                {l.numero_factura && (
-                  <p className="text-xs text-neutral-500">{l.numero_factura}</p>
-                )}
-              </div>
-            </Tarjeta>
-          ))}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold">Llegadas</h1>
+            <p className="text-sm text-zinc-500">{arrivals.length} registros</p>
+          </div>
+          <Button onClick={() => setModalOpen(true)} size="sm">
+            <Plus className="w-4 h-4 mr-1" />
+            Nueva Llegada
+          </Button>
         </div>
 
-        {llegadas.length === 0 && (
-          <div className="text-center py-12 text-neutral-500">
-            <p className="text-sm">Sin llegadas registradas</p>
+        {arrivals.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-zinc-500 text-sm">No hay llegadas registradas</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {arrivals.map((a) => (
+              <div
+                key={a.id}
+                className="bg-zinc-900 rounded-xl p-3 border border-zinc-800/50 flex items-center gap-3"
+              >
+                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                  <ArrowDown className="w-4 h-4 text-blue-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">
+                    {a.productos?.nombre ?? "Producto"}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    {a.cantidad} uds
+                    {a.proveedores?.nombre ? ` · ${a.proveedores.nombre}` : ""}
+                    {" · "}
+                    {formatDateTime(a.created_at)}
+                  </p>
+                </div>
+                <p className="text-sm font-semibold text-blue-400 shrink-0">
+                  -{formatBs(a.precio_compra * a.cantidad)}
+                </p>
+              </div>
+            ))}
           </div>
         )}
-
-        <FormularioLlegada
-          abierto={modalAbierto}
-          onCerrar={() => setModalAbierto(false)}
-          onRegistrada={cargarLlegadas}
-        />
       </div>
-    </ShellApp>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nueva Llegada">
+        <ArrivalForm onClose={handleClose} />
+      </Modal>
+    </AppShell>
   );
 }

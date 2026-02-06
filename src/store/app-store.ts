@@ -1,100 +1,93 @@
 import { create } from "zustand";
-import type { Producto, Categoria, Proveedor, Prestamo, AlertaStock, NivelStock } from "@/types";
+import type { Product, Category, Supplier, Loan, StockAlert, StockLevel } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 
 interface AppState {
-  productos: Producto[];
-  categorias: Categoria[];
-  proveedores: Proveedor[];
-  prestamos: Prestamo[];
-  cargando: boolean;
-  busqueda: string;
-  setBusqueda: (busqueda: string) => void;
-  cargarCategorias: () => Promise<void>;
-  cargarProductos: () => Promise<void>;
-  cargarProveedores: () => Promise<void>;
-  cargarPrestamos: () => Promise<void>;
-  cargarTodo: () => Promise<void>;
-  obtenerAlertas: () => AlertaStock[];
+  products: Product[];
+  categories: Category[];
+  suppliers: Supplier[];
+  loans: Loan[];
+  loading: boolean;
+  search: string;
+  setSearch: (s: string) => void;
+  loadCategories: () => Promise<void>;
+  loadProducts: () => Promise<void>;
+  loadSuppliers: () => Promise<void>;
+  loadLoans: () => Promise<void>;
+  loadAll: () => Promise<void>;
+  getAlerts: () => StockAlert[];
 }
 
-function calcularNivelStock(producto: Producto): NivelStock {
-  if (producto.stock_actual <= producto.stock_minimo) return "critico";
-  const umbral = producto.stock_minimo * 1.2;
-  if (producto.stock_actual <= umbral) return "bajo";
+function getStockLevel(product: Product): StockLevel {
+  if (product.stock_actual <= product.stock_minimo) return "critical";
+  if (product.stock_actual <= product.stock_minimo * 1.2) return "low";
   return "normal";
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  productos: [],
-  categorias: [],
-  proveedores: [],
-  prestamos: [],
-  cargando: false,
-  busqueda: "",
+  products: [],
+  categories: [],
+  suppliers: [],
+  loans: [],
+  loading: false,
+  search: "",
 
-  setBusqueda: (busqueda) => set({ busqueda }),
+  setSearch: (search) => set({ search }),
 
-  cargarCategorias: async () => {
+  loadCategories: async () => {
     const supabase = createClient();
-    const { data } = await supabase
-      .from("categorias")
-      .select("*")
-      .order("nombre");
-    if (data) set({ categorias: data });
+    const { data } = await supabase.from("categorias").select("*").order("nombre");
+    if (data) set({ categories: data });
   },
 
-  cargarProductos: async () => {
+  loadProducts: async () => {
     const supabase = createClient();
     const { data } = await supabase
       .from("productos")
       .select("*, categoria:categorias(*)")
       .eq("activo", true)
       .order("nombre");
-    if (data) set({ productos: data });
+    if (data) set({ products: data });
   },
 
-  cargarProveedores: async () => {
+  loadSuppliers: async () => {
     const supabase = createClient();
-    const { data } = await supabase
-      .from("proveedores")
-      .select("*")
-      .order("nombre");
-    if (data) set({ proveedores: data });
+    const { data } = await supabase.from("proveedores").select("*").order("nombre");
+    if (data) set({ suppliers: data });
   },
 
-  cargarPrestamos: async () => {
+  loadLoans: async () => {
     const supabase = createClient();
     const { data } = await supabase
       .from("prestamos")
       .select("*, producto:productos(*)")
       .order("fecha_prestamo", { ascending: false });
-    if (data) set({ prestamos: data });
+    if (data) set({ loans: data });
   },
 
-  cargarTodo: async () => {
-    set({ cargando: true });
+  loadAll: async () => {
+    set({ loading: true });
     const state = get();
     await Promise.all([
-      state.cargarCategorias(),
-      state.cargarProductos(),
-      state.cargarProveedores(),
-      state.cargarPrestamos(),
+      state.loadCategories(),
+      state.loadProducts(),
+      state.loadSuppliers(),
+      state.loadLoans(),
     ]);
-    set({ cargando: false });
+    set({ loading: false });
   },
 
-  obtenerAlertas: () => {
-    const { productos } = get();
-    return productos
-      .filter((p) => calcularNivelStock(p) !== "normal")
+  getAlerts: () => {
+    const { products } = get();
+    return products
+      .filter((p) => getStockLevel(p) !== "normal")
       .map((p) => ({
-        producto: p,
-        nivel: calcularNivelStock(p),
-        porcentaje: p.stock_minimo > 0
+        product: p,
+        level: getStockLevel(p),
+        percentage: p.stock_minimo > 0
           ? Math.round((p.stock_actual / p.stock_minimo) * 100)
           : 0,
       }))
-      .sort((a, b) => a.porcentaje - b.porcentaje);
+      .sort((a, b) => a.percentage - b.percentage);
   },
 }));

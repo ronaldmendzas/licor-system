@@ -1,192 +1,109 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import ShellApp from "@/components/layout/shell-app";
-import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState, useMemo } from "react";
+import AppShell from "@/components/layout/app-shell";
 import { useAppStore } from "@/store/app-store";
-import { formatearBs } from "@/lib/utils";
-import Tarjeta from "@/components/ui/tarjeta";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
-import { TrendingUp, Award, DollarSign } from "lucide-react";
+import { LoadingScreen } from "@/components/ui/loading";
+import { BarChart3, TrendingUp, TrendingDown } from "lucide-react";
+import { formatBs, calcMargin } from "@/lib/utils";
 
-interface VentaAgrupada {
-  nombre: string;
-  cantidad: number;
-  total: number;
-}
-
-const COLORES = ["#8b5cf6", "#3b82f6", "#22c55e", "#eab308", "#ef4444", "#ec4899"];
-
-export default function PaginaAnalisis() {
-  const productos = useAppStore((s) => s.productos);
-  const [ventasPorProducto, setVentasPorProducto] = useState<VentaAgrupada[]>([]);
-  const [ventasPorCategoria, setVentasPorCategoria] = useState<{ nombre: string; total: number }[]>([]);
-  const [periodo, setPeriodo] = useState<"semana" | "mes">("semana");
+export default function AnalysisPage() {
+  const products = useAppStore((s) => s.products);
+  const loading = useAppStore((s) => s.loading);
+  const loadAll = useAppStore((s) => s.loadAll);
 
   useEffect(() => {
-    async function cargar() {
-      const supabase = createClient();
-      const desde = new Date();
-      if (periodo === "semana") desde.setDate(desde.getDate() - 7);
-      else desde.setMonth(desde.getMonth() - 1);
+    loadAll();
+  }, [loadAll]);
 
-      const { data: ventas } = await supabase
-        .from("ventas")
-        .select("cantidad, total, producto:productos(nombre, categoria:categorias(nombre))")
-        .gte("fecha", desde.toISOString());
+  const analysis = useMemo(() => {
+    const byCategory = new Map<string, { name: string; count: number; value: number }>();
+    let highestMargin = { name: "", margin: 0 };
+    let lowestMargin = { name: "", margin: 100 };
 
-      if (!ventas) return;
+    products.forEach((p) => {
+      const catName = p.categorias?.nombre ?? "Sin categoría";
+      const catId = p.categoria_id ?? "none";
+      const existing = byCategory.get(catId) ?? { name: catName, count: 0, value: 0 };
+      existing.count += 1;
+      existing.value += p.precio_venta * p.stock_actual;
+      byCategory.set(catId, existing);
 
-      const porProducto = new Map<string, VentaAgrupada>();
-      const porCategoria = new Map<string, number>();
+      const margin = calcMargin(p.precio_compra, p.precio_venta);
+      if (margin > highestMargin.margin) highestMargin = { name: p.nombre, margin };
+      if (margin < lowestMargin.margin && p.precio_compra > 0) lowestMargin = { name: p.nombre, margin };
+    });
 
-      for (const v of ventas) {
-        const producto = v.producto as unknown as { nombre: string; categoria: { nombre: string } | null } | null;
-        const nombre = producto?.nombre || "Desconocido";
-        const cat = producto?.categoria?.nombre || "Otros";
+    const categoryStats = Array.from(byCategory.values()).sort((a, b) => b.value - a.value);
 
-        const existing = porProducto.get(nombre) || { nombre, cantidad: 0, total: 0 };
-        existing.cantidad += v.cantidad;
-        existing.total += v.total;
-        porProducto.set(nombre, existing);
+    return { categoryStats, highestMargin, lowestMargin };
+  }, [products]);
 
-        porCategoria.set(cat, (porCategoria.get(cat) || 0) + v.total);
-      }
-
-      setVentasPorProducto(
-        Array.from(porProducto.values())
-          .sort((a, b) => b.cantidad - a.cantidad)
-          .slice(0, 5)
-      );
-
-      setVentasPorCategoria(
-        Array.from(porCategoria.entries())
-          .map(([nombre, total]) => ({ nombre, total }))
-          .sort((a, b) => b.total - a.total)
-      );
-    }
-    cargar();
-  }, [periodo]);
-
-  const valorInventario = productos.reduce(
-    (sum, p) => sum + p.precio_compra * p.stock_actual,
-    0
-  );
-  const valorVentaPotencial = productos.reduce(
-    (sum, p) => sum + p.precio_venta * p.stock_actual,
-    0
-  );
-  const gananciaPotencial = valorVentaPotencial - valorInventario;
+  if (loading) return <LoadingScreen />;
 
   return (
-    <ShellApp titulo="Análisis">
+    <AppShell>
       <div className="space-y-4">
-        <div className="flex gap-2">
-          {(["semana", "mes"] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriodo(p)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                periodo === p ? "bg-purple-600 text-white" : "bg-neutral-800 text-neutral-400"
-              }`}
-            >
-              {p === "semana" ? "Esta semana" : "Este mes"}
-            </button>
-          ))}
+        <div>
+          <h1 className="text-xl font-bold">Análisis</h1>
+          <p className="text-sm text-zinc-500">Métricas del inventario</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <Tarjeta>
-            <DollarSign className="w-4 h-4 text-blue-400 mb-1" />
-            <p className="text-[10px] text-neutral-500">Inversión</p>
-            <p className="text-sm font-bold">{formatearBs(valorInventario)}</p>
-          </Tarjeta>
-          <Tarjeta>
-            <TrendingUp className="w-4 h-4 text-green-400 mb-1" />
-            <p className="text-[10px] text-neutral-500">Valor venta</p>
-            <p className="text-sm font-bold">{formatearBs(valorVentaPotencial)}</p>
-          </Tarjeta>
-          <Tarjeta>
-            <Award className="w-4 h-4 text-purple-400 mb-1" />
-            <p className="text-[10px] text-neutral-500">Ganancia</p>
-            <p className="text-sm font-bold text-green-400">{formatearBs(gananciaPotencial)}</p>
-          </Tarjeta>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800/50">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs text-zinc-500">Mayor margen</span>
+            </div>
+            <p className="text-sm font-medium truncate">{analysis.highestMargin.name || "—"}</p>
+            <p className="text-lg font-bold text-emerald-400">
+              {analysis.highestMargin.margin.toFixed(1)}%
+            </p>
+          </div>
+          <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800/50">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingDown className="w-4 h-4 text-red-400" />
+              <span className="text-xs text-zinc-500">Menor margen</span>
+            </div>
+            <p className="text-sm font-medium truncate">{analysis.lowestMargin.name || "—"}</p>
+            <p className="text-lg font-bold text-red-400">
+              {analysis.lowestMargin.margin.toFixed(1)}%
+            </p>
+          </div>
         </div>
 
-        {ventasPorProducto.length > 0 && (
-          <Tarjeta>
-            <h3 className="text-sm font-semibold mb-3">Top productos vendidos</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={ventasPorProducto} layout="vertical">
-                <XAxis type="number" hide />
-                <YAxis
-                  type="category"
-                  dataKey="nombre"
-                  width={100}
-                  tick={{ fontSize: 11, fill: "#a3a3a3" }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "#141414",
-                    border: "1px solid #262626",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                  }}
-                />
-                <Bar dataKey="cantidad" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Tarjeta>
-        )}
-
-        {ventasPorCategoria.length > 0 && (
-          <Tarjeta>
-            <h3 className="text-sm font-semibold mb-3">Ventas por categoría</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={ventasPorCategoria}
-                  dataKey="total"
-                  nameKey="nombre"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  label={({ name }) => name}
-                >
-                  {ventasPorCategoria.map((_, i) => (
-                    <Cell key={i} fill={COLORES[i % COLORES.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    background: "#141414",
-                    border: "1px solid #262626",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                  }}
-                  formatter={(value) => formatearBs(value as number)}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </Tarjeta>
-        )}
-
-        {ventasPorProducto.length === 0 && (
-          <Tarjeta className="text-center py-8">
-            <p className="text-neutral-500 text-sm">No hay datos de ventas para este período</p>
-          </Tarjeta>
-        )}
+        <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800/50">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="w-4 h-4 text-violet-400" />
+            <h3 className="text-sm font-semibold">Valor por Categoría</h3>
+          </div>
+          {analysis.categoryStats.length === 0 ? (
+            <p className="text-sm text-zinc-500 text-center py-4">Sin datos</p>
+          ) : (
+            <div className="space-y-3">
+              {analysis.categoryStats.map((cat) => {
+                const maxVal = analysis.categoryStats[0]?.value ?? 1;
+                const pct = maxVal > 0 ? (cat.value / maxVal) * 100 : 0;
+                return (
+                  <div key={cat.name}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-zinc-400">{cat.name}</span>
+                      <span className="text-xs font-medium">{formatBs(cat.value)}</span>
+                    </div>
+                    <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-violet-500 rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-zinc-600 mt-0.5">{cat.count} productos</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
-    </ShellApp>
+    </AppShell>
   );
 }

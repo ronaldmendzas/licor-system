@@ -18,7 +18,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#0a0a0a",
+  themeColor: "#09090b",
 };
 
 export default function RootLayout({
@@ -35,9 +35,9 @@ export default function RootLayout({
           richColors
           toastOptions={{
             style: {
-              background: "#141414",
-              border: "1px solid #262626",
-              color: "#ededed",
+              background: "#18181b",
+              border: "1px solid #27272a",
+              color: "#fafafa",
             },
           }}
         />

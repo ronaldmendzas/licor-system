@@ -1,271 +1,251 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import ShellApp from "@/components/layout/shell-app";
-import { useReconocimientoVoz } from "@/hooks/use-reconocimiento-voz";
-import { interpretarComando, resolverProductos } from "@/lib/voz/interprete-voz";
+import { useState, useRef, useEffect } from "react";
+import AppShell from "@/components/layout/app-shell";
 import { useAppStore } from "@/store/app-store";
-import { createClient } from "@/lib/supabase/client";
-import { toast } from "sonner";
-import Tarjeta from "@/components/ui/tarjeta";
+import { LoadingScreen } from "@/components/ui/loading";
+import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Volume2 } from "lucide-react";
+import Fuse from "fuse.js";
+import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 
-interface MensajeChat {
-  rol: "usuario" | "sistema";
-  texto: string;
+interface VoiceResult {
+  action: "sale" | "arrival" | "search" | "unknown";
+  productName: string | null;
+  quantity: number;
+  matched: string | null;
 }
 
-export default function PaginaVoz() {
-  const { escuchando, texto, iniciar, detener, soportado } = useReconocimientoVoz();
-  const productos = useAppStore((s) => s.productos);
-  const cargarProductos = useAppStore((s) => s.cargarProductos);
-  const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
-  const [procesando, setProcesando] = useState(false);
+function parseVoiceCommand(text: string, products: any[]): VoiceResult {
+  const lower = text.toLowerCase();
+  let action: VoiceResult["action"] = "unknown";
+  let quantity = 1;
 
-  function agregarMensaje(rol: MensajeChat["rol"], texto: string) {
-    setMensajes((prev) => [...prev, { rol, texto }]);
+  if (lower.includes("vender") || lower.includes("venta") || lower.includes("vendé")) {
+    action = "sale";
+  } else if (lower.includes("llegó") || lower.includes("llegada") || lower.includes("recibir") || lower.includes("agregar")) {
+    action = "arrival";
+  } else if (lower.includes("buscar") || lower.includes("busca") || lower.includes("cuánto") || lower.includes("stock")) {
+    action = "search";
   }
 
-  async function procesarComando(textoVoz: string) {
-    if (!textoVoz.trim() || procesando) return;
-    setProcesando(true);
-    agregarMensaje("usuario", textoVoz);
+  const qtyMatch = lower.match(/(\d+)\s+(unidad|botella|caja|lata)/);
+  if (qtyMatch) quantity = parseInt(qtyMatch[1]);
+  else {
+    const numMatch = lower.match(/(\d+)/);
+    if (numMatch) quantity = parseInt(numMatch[1]);
+  }
 
-    const comando = interpretarComando(textoVoz);
-    const productosResueltos = resolverProductos(comando.productos, productos);
-    comando.productos = productosResueltos;
+  const fuse = new Fuse(products, { keys: ["nombre"], threshold: 0.4 });
+  const words = text.split(/\s+/);
+  let bestMatch: string | null = null;
 
-    const supabase = createClient();
-
-    switch (comando.tipo) {
-      case "venta": {
-        const exitosos: string[] = [];
-        for (const p of comando.productos) {
-          if (!p.productoId) {
-            agregarMensaje("sistema", `No encontré "${p.nombre}" en el inventario`);
-            continue;
-          }
-          const { error } = await supabase.from("ventas").insert({
-            producto_id: p.productoId,
-            cantidad: p.cantidad,
-            precio_unitario: productos.find((pr) => pr.id === p.productoId)?.precio_venta || 0,
-            total: (productos.find((pr) => pr.id === p.productoId)?.precio_venta || 0) * p.cantidad,
-          });
-          if (!error) exitosos.push(`${p.cantidad}x ${p.nombre}`);
-        }
-        if (exitosos.length > 0) {
-          agregarMensaje("sistema", `Registrado: ${exitosos.join(", ")} vendidas`);
-          toast.success("Venta registrada por voz");
-          await cargarProductos();
-        }
+  for (let len = words.length; len >= 2; len--) {
+    for (let i = 0; i <= words.length - len; i++) {
+      const phrase = words.slice(i, i + len).join(" ");
+      const res = fuse.search(phrase);
+      if (res.length > 0) {
+        bestMatch = res[0].item.nombre;
         break;
       }
-
-      case "llegada": {
-        const exitosos: string[] = [];
-        for (const p of comando.productos) {
-          if (!p.productoId) {
-            agregarMensaje("sistema", `No encontré "${p.nombre}"`);
-            continue;
-          }
-          const prod = productos.find((pr) => pr.id === p.productoId);
-          const { error } = await supabase.from("llegadas").insert({
-            producto_id: p.productoId,
-            cantidad: p.cantidad,
-            precio_compra: prod?.precio_compra || 0,
-          });
-          if (!error) exitosos.push(`${p.cantidad}x ${p.nombre}`);
-        }
-        if (exitosos.length > 0) {
-          agregarMensaje("sistema", `Llegada registrada: ${exitosos.join(", ")}`);
-          toast.success("Llegada registrada por voz");
-          await cargarProductos();
-        }
-        break;
-      }
-
-      case "prestamo": {
-        if (!comando.persona) {
-          agregarMensaje("sistema", "¿A quién se le presta? Dime el nombre");
-          break;
-        }
-        for (const p of comando.productos) {
-          if (!p.productoId) continue;
-          await supabase.from("prestamos").insert({
-            producto_id: p.productoId,
-            persona: comando.persona,
-            cantidad: p.cantidad,
-            garantia_bs: comando.garantia || 0,
-          });
-        }
-        agregarMensaje("sistema",
-          `Préstamo registrado a ${comando.persona}${comando.garantia ? `, garantía Bs. ${comando.garantia}` : ""}`
-        );
-        await cargarProductos();
-        break;
-      }
-
-      case "consulta": {
-        await procesarConsulta(comando.consultaTipo, comando.productos);
-        break;
-      }
-
-      default:
-        agregarMensaje("sistema", "No entendí el comando. Intenta: 'Vendí 5 Pilsen' o '¿Cuántas Pilsen tengo?'");
     }
-
-    setProcesando(false);
+    if (bestMatch) break;
   }
 
-  async function procesarConsulta(
-    tipo: string | undefined,
-    prods: { nombre: string; productoId?: string }[]
-  ) {
-    const supabase = createClient();
+  return {
+    action,
+    productName: bestMatch ? text : null,
+    quantity,
+    matched: bestMatch,
+  };
+}
 
-    switch (tipo) {
-      case "stock": {
-        if (prods.length > 0 && prods[0].productoId) {
-          const p = productos.find((pr) => pr.id === prods[0].productoId);
-          agregarMensaje("sistema", p ? `${p.nombre}: ${p.stock_actual} unidades en stock` : "Producto no encontrado");
-        } else {
-          const bajos = productos.filter((p) => p.stock_actual <= p.stock_minimo);
-          agregarMensaje("sistema",
-            bajos.length > 0
-              ? `${bajos.length} productos con stock bajo: ${bajos.map((p) => `${p.nombre} (${p.stock_actual})`).join(", ")}`
-              : "Todo el stock está bien"
-          );
-        }
-        break;
-      }
-      case "ventas_hoy": {
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        const { data } = await supabase
-          .from("ventas")
-          .select("cantidad, total, producto:productos(nombre)")
-          .gte("fecha", hoy.toISOString());
-        if (data && data.length > 0) {
-          const total = data.reduce((s, v) => s + v.total, 0);
-          agregarMensaje("sistema", `Hoy se vendieron ${data.length} items. Total: Bs. ${total.toFixed(2)}`);
-        } else {
-          agregarMensaje("sistema", "Hoy no se ha vendido nada aún");
-        }
-        break;
-      }
-      case "dinero_hoy": {
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        const { data } = await supabase
-          .from("ventas")
-          .select("total")
-          .gte("fecha", hoy.toISOString());
-        const total = data?.reduce((s, v) => s + v.total, 0) || 0;
-        agregarMensaje("sistema", `Hoy has facturado Bs. ${total.toFixed(2)}`);
-        break;
-      }
-      case "bajo_minimo": {
-        const bajos = productos.filter((p) => p.stock_actual <= p.stock_minimo);
-        if (bajos.length === 0) {
-          agregarMensaje("sistema", "No hay productos por debajo del mínimo");
-        } else {
-          const lista = bajos.map((p) => `${p.nombre}: ${p.stock_actual}/${p.stock_minimo}`).join("\n");
-          agregarMensaje("sistema", `Debes pedir:\n${lista}`);
-        }
-        break;
-      }
-      default:
-        agregarMensaje("sistema", "No tengo datos suficientes para responder eso aún");
-    }
-  }
+export default function VoicePage() {
+  const products = useAppStore((s) => s.products);
+  const loading = useAppStore((s) => s.loading);
+  const loadAll = useAppStore((s) => s.loadAll);
+  const loadProducts = useAppStore((s) => s.loadProducts);
+
+  const [listening, setListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [result, setResult] = useState<VoiceResult | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!escuchando && texto) {
-      procesarComando(texto);
+    loadAll();
+  }, [loadAll]);
+
+  function startListening() {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      toast.error("Tu navegador no soporta reconocimiento de voz");
+      return;
     }
-  }, [escuchando]);
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "es-BO";
+    recognition.continuous = false;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event: any) => {
+      const text = Array.from(event.results)
+        .map((r: any) => r[0].transcript)
+        .join("");
+      setTranscript(text);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
+
+    recognition.onerror = () => {
+      setListening(false);
+      toast.error("Error de reconocimiento");
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
+    setTranscript("");
+    setResult(null);
+  }
+
+  function stopListening() {
+    recognitionRef.current?.stop();
+    setListening(false);
+  }
+
+  async function processCommand() {
+    if (!transcript.trim()) return;
+    setProcessing(true);
+    const parsed = parseVoiceCommand(transcript, products);
+    setResult(parsed);
+
+    if (parsed.action === "sale" && parsed.matched) {
+      const product = products.find((p) => p.nombre === parsed.matched);
+      if (product && product.stock_actual >= parsed.quantity) {
+        const supabase = createClient();
+        await supabase.from("ventas").insert({
+          producto_id: product.id,
+          cantidad: parsed.quantity,
+          precio_venta: product.precio_venta,
+        });
+        toast.success(`Venta: ${parsed.quantity}x ${product.nombre}`);
+        await loadProducts();
+      } else {
+        toast.error("Stock insuficiente o producto no encontrado");
+      }
+    } else if (parsed.action === "arrival" && parsed.matched) {
+      const product = products.find((p) => p.nombre === parsed.matched);
+      if (product) {
+        const supabase = createClient();
+        await supabase.from("llegadas").insert({
+          producto_id: product.id,
+          cantidad: parsed.quantity,
+          precio_compra: product.precio_compra,
+        });
+        toast.success(`Llegada: ${parsed.quantity}x ${product.nombre}`);
+        await loadProducts();
+      }
+    } else if (parsed.action === "search" && parsed.matched) {
+      const product = products.find((p) => p.nombre === parsed.matched);
+      if (product) {
+        toast.info(`${product.nombre}: ${product.stock_actual} en stock`);
+      }
+    } else {
+      toast.info("No se pudo interpretar el comando");
+    }
+
+    setProcessing(false);
+  }
+
+  if (loading) return <LoadingScreen />;
+
+  const actionLabels = {
+    sale: "Venta",
+    arrival: "Llegada",
+    search: "Consulta",
+    unknown: "Desconocido",
+  };
 
   return (
-    <ShellApp titulo="Asistente de Voz">
+    <AppShell>
       <div className="space-y-4">
-        <Tarjeta className="text-center">
-          <p className="text-xs text-neutral-500 mb-4">
-            {soportado
-              ? "Presiona el micrófono y habla naturalmente"
-              : "Tu navegador no soporta reconocimiento de voz"}
-          </p>
-
-          <button
-            onClick={escuchando ? detener : iniciar}
-            disabled={!soportado || procesando}
-            className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto transition-all ${
-              escuchando
-                ? "bg-red-500 animate-pulse scale-110"
-                : "bg-purple-600 hover:bg-purple-700"
-            } disabled:opacity-50`}
-          >
-            {escuchando ? (
-              <MicOff className="w-8 h-8 text-white" />
-            ) : (
-              <Mic className="w-8 h-8 text-white" />
-            )}
-          </button>
-
-          {escuchando && (
-            <p className="text-sm text-purple-400 mt-3 animate-pulse">
-              Escuchando...
-            </p>
-          )}
-
-          {texto && escuchando && (
-            <p className="text-sm text-neutral-300 mt-2 italic">{texto}</p>
-          )}
-        </Tarjeta>
-
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Volume2 className="w-4 h-4" />
-            Conversación
-          </h3>
-
-          {mensajes.length === 0 && (
-            <Tarjeta className="text-center">
-              <p className="text-xs text-neutral-500">
-                Prueba diciendo: &ldquo;Vendí 5 Pilsen&rdquo; o &ldquo;¿Qué se vendió hoy?&rdquo;
-              </p>
-            </Tarjeta>
-          )}
-
-          {mensajes.map((m, i) => (
-            <div
-              key={i}
-              className={`flex ${m.rol === "usuario" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[80%] px-3 py-2 rounded-xl text-sm whitespace-pre-line ${
-                  m.rol === "usuario"
-                    ? "bg-purple-600 text-white rounded-br-sm"
-                    : "bg-neutral-800 text-neutral-200 rounded-bl-sm"
-                }`}
-              >
-                {m.texto}
-              </div>
-            </div>
-          ))}
+        <div>
+          <h1 className="text-xl font-bold">Voz IA</h1>
+          <p className="text-sm text-zinc-500">Controla el inventario con tu voz</p>
         </div>
 
-        <Tarjeta>
-          <p className="text-xs font-semibold text-neutral-400 mb-2">Comandos de ejemplo:</p>
-          <div className="space-y-1 text-xs text-neutral-500">
-            <p>&ldquo;Vendí 5 cervezas Pilsen&rdquo;</p>
-            <p>&ldquo;Llegaron 50 Pilsen del proveedor&rdquo;</p>
-            <p>&ldquo;Préstamo: 2 Pilsen a Juan, dejó 20 bolivianos&rdquo;</p>
-            <p>&ldquo;¿Cuántas Pilsen tengo?&rdquo;</p>
-            <p>&ldquo;¿Qué se vendió hoy?&rdquo;</p>
-            <p>&ldquo;¿Qué debo pedir?&rdquo;</p>
+        <div className="flex flex-col items-center py-8 gap-4">
+          <button
+            onClick={listening ? stopListening : startListening}
+            className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 ${
+              listening
+                ? "bg-red-500/20 border-2 border-red-500 animate-pulse"
+                : "bg-violet-500/15 border-2 border-violet-500/40 hover:border-violet-500"
+            }`}
+          >
+            {listening ? (
+              <MicOff className="w-8 h-8 text-red-400" />
+            ) : (
+              <Mic className="w-8 h-8 text-violet-400" />
+            )}
+          </button>
+          <p className="text-sm text-zinc-500">
+            {listening ? "Escuchando..." : "Toca para hablar"}
+          </p>
+        </div>
+
+        {transcript && (
+          <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800/50">
+            <p className="text-xs text-zinc-500 mb-1">Transcripción</p>
+            <p className="text-sm">{transcript}</p>
+            {!result && (
+              <Button
+                onClick={processCommand}
+                disabled={processing}
+                className="mt-3 w-full"
+                size="sm"
+              >
+                {processing ? "Procesando..." : "Ejecutar comando"}
+              </Button>
+            )}
           </div>
-        </Tarjeta>
+        )}
+
+        {result && (
+          <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800/50 space-y-2">
+            <p className="text-xs text-zinc-500">Resultado</p>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-400">Acción:</span>
+              <span className="text-sm font-medium">{actionLabels[result.action]}</span>
+            </div>
+            {result.matched && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-400">Producto:</span>
+                <span className="text-sm font-medium text-emerald-400">{result.matched}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-400">Cantidad:</span>
+              <span className="text-sm font-medium">{result.quantity}</span>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-zinc-800/50 rounded-xl p-3">
+          <p className="text-xs text-zinc-500 font-semibold mb-2">Ejemplos:</p>
+          <div className="space-y-1.5 text-xs text-zinc-400">
+            <p>• &quot;Vender 2 botellas de Singani Casa Real&quot;</p>
+            <p>• &quot;Llegó 5 unidades de cerveza Paceña&quot;</p>
+            <p>• &quot;¿Cuánto stock hay de ron?&quot;</p>
+          </div>
+        </div>
       </div>
-    </ShellApp>
+    </AppShell>
   );
 }
