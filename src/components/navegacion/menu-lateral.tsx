@@ -14,6 +14,9 @@ import {
   LogOut,
   X,
   Wine,
+  Camera,
+  TrendingUp,
+  ClipboardList,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -38,12 +41,15 @@ const SECCIONES = [
     enlaces: [
       { href: "/proveedores", icono: Users, etiqueta: "Proveedores" },
       { href: "/analisis", icono: BarChart3, etiqueta: "Análisis" },
+      { href: "/predicciones", icono: TrendingUp, etiqueta: "Predicciones" },
+      { href: "/recomendaciones", icono: ClipboardList, etiqueta: "Compras" },
       { href: "/reportes", icono: FileText, etiqueta: "Reportes" },
     ],
   },
   {
-    titulo: "Sistema",
+    titulo: "Herramientas",
     enlaces: [
+      { href: "/imagen", icono: Camera, etiqueta: "IA Imagen" },
       { href: "/configuracion", icono: Settings, etiqueta: "Configuración" },
     ],
   },
