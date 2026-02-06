@@ -160,29 +160,4 @@ CREATE POLICY "Acceso completo ventas" ON ventas FOR ALL USING (auth.role() = 'a
 CREATE POLICY "Acceso completo llegadas" ON llegadas FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Acceso completo prestamos" ON prestamos FOR ALL USING (auth.role() = 'authenticated');
 
--- =============================================
--- DATOS INICIALES
--- =============================================
-INSERT INTO categorias (nombre) VALUES
-  ('Cervezas'),
-  ('Vodkas'),
-  ('Whiskys'),
-  ('Rones'),
-  ('Vinos'),
-  ('Singani'),
-  ('Aguardientes'),
-  ('Energizantes'),
-  ('Gaseosas'),
-  ('Otros');
-
-INSERT INTO productos (nombre, categoria_id, precio_compra, precio_venta, stock_actual, stock_minimo, alias) VALUES
-  ('Cerveza Pilsen 620ml', (SELECT id FROM categorias WHERE nombre = 'Cervezas'), 7.00, 10.00, 48, 20, ARRAY['Pilsen', 'Pili', 'Pilse', 'Verde']),
-  ('Cerveza Paceña 620ml', (SELECT id FROM categorias WHERE nombre = 'Cervezas'), 7.00, 10.00, 36, 20, ARRAY['Paceña', 'Pace', 'Pache']),
-  ('Cerveza Huari 620ml', (SELECT id FROM categorias WHERE nombre = 'Cervezas'), 7.50, 12.00, 24, 15, ARRAY['Huari', 'Wari']),
-  ('Cerveza Taquiña 620ml', (SELECT id FROM categorias WHERE nombre = 'Cervezas'), 7.00, 10.00, 12, 10, ARRAY['Taquiña', 'Taqui']),
-  ('Vodka Absolut 750ml', (SELECT id FROM categorias WHERE nombre = 'Vodkas'), 85.00, 120.00, 6, 3, ARRAY['Absolut', 'Abso']),
-  ('Vodka Smirnoff 750ml', (SELECT id FROM categorias WHERE nombre = 'Vodkas'), 55.00, 80.00, 8, 3, ARRAY['Smirnoff', 'Smir']),
-  ('Whisky Johnnie Walker Red 750ml', (SELECT id FROM categorias WHERE nombre = 'Whiskys'), 120.00, 180.00, 4, 2, ARRAY['JW', 'Johnnie', 'Walker Red', 'Johnny']),
-  ('Whisky Johnnie Walker Black 750ml', (SELECT id FROM categorias WHERE nombre = 'Whiskys'), 250.00, 350.00, 2, 1, ARRAY['JW Black', 'Walker Black', 'Etiqueta Negra']),
-  ('Ron Abuelo 750ml', (SELECT id FROM categorias WHERE nombre = 'Rones'), 45.00, 70.00, 5, 2, ARRAY['Abuelo', 'Ron Abuelo']),
-  ('Singani Casa Real', (SELECT id FROM categorias WHERE nombre = 'Singani'), 35.00, 55.00, 10, 5, ARRAY['Casa Real', 'Singani']);
+-- Sin datos iniciales: el usuario creara categorias y productos manualmente

@@ -12,14 +12,15 @@ interface Props {
   abierto: boolean;
   onCerrar: () => void;
   producto?: Producto | null;
+  categoriaIdInicial?: string;
 }
 
-export default function FormularioProducto({ abierto, onCerrar, producto }: Props) {
+export default function FormularioProducto({ abierto, onCerrar, producto, categoriaIdInicial }: Props) {
   const categorias = useAppStore((s) => s.categorias);
   const cargarProductos = useAppStore((s) => s.cargarProductos);
 
   const [nombre, setNombre] = useState(producto?.nombre || "");
-  const [categoriaId, setCategoriaId] = useState(producto?.categoria_id || "");
+  const [categoriaId, setCategoriaId] = useState(producto?.categoria_id || categoriaIdInicial || "");
   const [precioCompra, setPrecioCompra] = useState(producto?.precio_compra?.toString() || "");
   const [precioVenta, setPrecioVenta] = useState(producto?.precio_venta?.toString() || "");
   const [stockActual, setStockActual] = useState(producto?.stock_actual?.toString() || "0");
