@@ -9,39 +9,59 @@ import { Mic, MicOff } from "lucide-react";
 import Fuse from "fuse.js";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { formatBs } from "@/lib/utils";
+
+type Action = "sale" | "arrival" | "search" | "price" | "category" | "unknown";
 
 interface VoiceResult {
-  action: "sale" | "arrival" | "search" | "unknown";
-  productName: string | null;
+  action: Action;
+  detail: string;
   quantity: number;
   matched: string | null;
 }
 
 function parseVoiceCommand(text: string, products: any[]): VoiceResult {
-  const lower = text.toLowerCase();
-  let action: VoiceResult["action"] = "unknown";
+  const lower = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  let action: Action = "unknown";
   let quantity = 1;
+  let detail = "";
 
-  if (lower.includes("vender") || lower.includes("venta") || lower.includes("vendé")) {
+  // Detect action
+  if (/vend(er|e|i)|registr(ar|a)\s*(una\s*)?venta|cobr(ar|a)/.test(lower)) {
     action = "sale";
-  } else if (lower.includes("llegó") || lower.includes("llegada") || lower.includes("recibir") || lower.includes("agregar")) {
+  } else if (/lleg(o|ada|aron)|recibi(r|mos)|agreg(ar|a)|entr(o|ada|aron)|reponer/.test(lower)) {
     action = "arrival";
-  } else if (lower.includes("buscar") || lower.includes("busca") || lower.includes("cuánto") || lower.includes("stock")) {
+  } else if (/categori|crear?\s*(una\s*)?categori|nueva\s*categori|agregar?\s*categori/.test(lower)) {
+    action = "category";
+    // Extract category names after keywords
+    const catMatch = text.match(/(?:categor[ií]a[s]?\s+(?:que\s+(?:se\s+llame|diga)\s+)?|llamada\s+|nombre\s+)(.+)/i);
+    if (catMatch) detail = catMatch[1].trim();
+    else {
+      // Try to get everything after "crear" or "nueva"
+      const altMatch = text.match(/(?:crear?|nueva|agregar?)\s+(.+)/i);
+      if (altMatch) detail = altMatch[1].replace(/categor[ií]a[s]?\s*/i, "").trim();
+    }
+  } else if (/preci|cuant[oo]\s*(cuesta|vale|es)|valor/.test(lower)) {
+    action = "price";
+  } else if (/busca|stock|hay|queda|cuant[oo]\s*(hay|queda|tiene)|disponible|inventario/.test(lower)) {
     action = "search";
   }
 
-  const qtyMatch = lower.match(/(\d+)\s+(unidad|botella|caja|lata)/);
-  if (qtyMatch) quantity = parseInt(qtyMatch[1]);
-  else {
+  // Extract quantity
+  const qtyMatch = lower.match(/(\d+)\s*(unidad|botella|caja|lata|pieza)/);
+  if (qtyMatch) {
+    quantity = parseInt(qtyMatch[1]);
+  } else {
     const numMatch = lower.match(/(\d+)/);
-    if (numMatch) quantity = parseInt(numMatch[1]);
+    if (numMatch && action !== "category") quantity = parseInt(numMatch[1]);
   }
 
+  // Match product name using fuzzy search
   const fuse = new Fuse(products, { keys: ["nombre"], threshold: 0.4 });
   const words = text.split(/\s+/);
   let bestMatch: string | null = null;
 
-  for (let len = words.length; len >= 2; len--) {
+  for (let len = Math.min(words.length, 6); len >= 2; len--) {
     for (let i = 0; i <= words.length - len; i++) {
       const phrase = words.slice(i, i + len).join(" ");
       const res = fuse.search(phrase);
@@ -53,24 +73,35 @@ function parseVoiceCommand(text: string, products: any[]): VoiceResult {
     if (bestMatch) break;
   }
 
-  return {
-    action,
-    productName: bestMatch ? text : null,
-    quantity,
-    matched: bestMatch,
-  };
+  // Single word match as fallback
+  if (!bestMatch && action !== "category") {
+    for (const word of words) {
+      if (word.length >= 3) {
+        const res = fuse.search(word);
+        if (res.length > 0 && res[0].score !== undefined && res[0].score < 0.3) {
+          bestMatch = res[0].item.nombre;
+          break;
+        }
+      }
+    }
+  }
+
+  return { action, detail, quantity, matched: bestMatch };
 }
 
 export default function VoicePage() {
   const products = useAppStore((s) => s.products);
+  const categories = useAppStore((s) => s.categories);
   const loading = useAppStore((s) => s.loading);
   const loadAll = useAppStore((s) => s.loadAll);
   const loadProducts = useAppStore((s) => s.loadProducts);
+  const loadCategories = useAppStore((s) => s.loadCategories);
 
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [result, setResult] = useState<VoiceResult | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [history, setHistory] = useState<{ text: string; ok: boolean }[]>([]);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -82,7 +113,7 @@ export default function VoicePage() {
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      toast.error("Tu navegador no soporta reconocimiento de voz");
+      toast.error("Tu navegador no soporta reconocimiento de voz. Usa Chrome.");
       return;
     }
 
@@ -124,51 +155,105 @@ export default function VoicePage() {
     setProcessing(true);
     const parsed = parseVoiceCommand(transcript, products);
     setResult(parsed);
+    let ok = false;
+
+    const supabase = createClient();
 
     if (parsed.action === "sale" && parsed.matched) {
       const product = products.find((p) => p.nombre === parsed.matched);
       if (product && product.stock_actual >= parsed.quantity) {
-        const supabase = createClient();
         await supabase.from("ventas").insert({
           producto_id: product.id,
           cantidad: parsed.quantity,
           precio_unitario: product.precio_venta,
           total: product.precio_venta * parsed.quantity,
         });
-        toast.success(`Venta: ${parsed.quantity}x ${product.nombre}`);
+        toast.success(`Venta registrada: ${parsed.quantity}x ${product.nombre} = ${formatBs(product.precio_venta * parsed.quantity)}`);
         await loadProducts();
+        ok = true;
       } else {
-        toast.error("Stock insuficiente o producto no encontrado");
+        toast.error(product ? `Stock insuficiente (tiene ${product.stock_actual})` : "Producto no encontrado");
       }
     } else if (parsed.action === "arrival" && parsed.matched) {
       const product = products.find((p) => p.nombre === parsed.matched);
       if (product) {
-        const supabase = createClient();
         await supabase.from("llegadas").insert({
           producto_id: product.id,
           cantidad: parsed.quantity,
           precio_compra: product.precio_compra,
         });
-        toast.success(`Llegada: ${parsed.quantity}x ${product.nombre}`);
+        toast.success(`Llegada registrada: ${parsed.quantity}x ${product.nombre}`);
         await loadProducts();
+        ok = true;
+      }
+    } else if (parsed.action === "category" && parsed.detail) {
+      // Parse multiple categories separated by "y", commas, or numbered lists
+      const names = parsed.detail
+        .split(/(?:\s*,\s*|\s+y\s+|\s*\d+\s*(?:que\s+(?:diga|se\s+llame)\s+)?)/i)
+        .map((n) => n.replace(/^(?:que\s+diga|que\s+se\s+llame)\s+/i, "").trim())
+        .filter((n) => n.length > 1);
+
+      if (names.length === 0) {
+        // Fallback: try to get words after common patterns
+        const fallback = parsed.detail.replace(/(?:que\s+diga|que\s+se\s+llame|otro\s+que\s+diga)/gi, ",").split(",").map(n => n.trim()).filter(n => n.length > 1);
+        names.push(...fallback);
+      }
+
+      if (names.length > 0) {
+        let created = 0;
+        for (const name of names) {
+          const capitalized = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+          const { error } = await supabase.from("categorias").insert({ nombre: capitalized });
+          if (!error) created++;
+        }
+        if (created > 0) {
+          toast.success(`${created} categoría(s) creada(s): ${names.join(", ")}`);
+          await loadCategories();
+          ok = true;
+        } else {
+          toast.error("No se pudieron crear las categorías (ya existen?)");
+        }
+      } else {
+        toast.error("No entendí los nombres de las categorías");
+      }
+    } else if (parsed.action === "price" && parsed.matched) {
+      const product = products.find((p) => p.nombre === parsed.matched);
+      if (product) {
+        toast.info(`${product.nombre}: Venta ${formatBs(product.precio_venta)} | Compra ${formatBs(product.precio_compra)}`);
+        ok = true;
       }
     } else if (parsed.action === "search" && parsed.matched) {
       const product = products.find((p) => p.nombre === parsed.matched);
       if (product) {
-        toast.info(`${product.nombre}: ${product.stock_actual} en stock`);
+        toast.info(`${product.nombre}: ${product.stock_actual} en stock (mínimo: ${product.stock_minimo})`);
+        ok = true;
       }
+    } else if (parsed.action === "unknown") {
+      toast.info("No entendí el comando. Mira los ejemplos abajo.");
     } else {
-      toast.info("No se pudo interpretar el comando");
+      toast.info("Comando reconocido pero falta el producto o detalle");
     }
 
+    setHistory((prev) => [{ text: transcript, ok }, ...prev.slice(0, 4)]);
     setProcessing(false);
   }
 
-  const actionLabels = {
+  const actionLabels: Record<Action, string> = {
     sale: "Venta",
     arrival: "Llegada",
-    search: "Consulta",
+    search: "Consulta Stock",
+    price: "Consulta Precio",
+    category: "Crear Categoría",
     unknown: "Desconocido",
+  };
+
+  const actionColors: Record<Action, string> = {
+    sale: "text-emerald-400",
+    arrival: "text-blue-400",
+    search: "text-violet-400",
+    price: "text-amber-400",
+    category: "text-pink-400",
+    unknown: "text-zinc-500",
   };
 
   return (
@@ -180,7 +265,7 @@ export default function VoicePage() {
           <p className="text-sm text-zinc-500">Controla el inventario con tu voz</p>
         </div>
 
-        <div className="flex flex-col items-center py-8 gap-4">
+        <div className="flex flex-col items-center py-6 gap-3">
           <button
             onClick={listening ? stopListening : startListening}
             className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 ${
@@ -222,7 +307,9 @@ export default function VoicePage() {
             <p className="text-xs text-zinc-500">Resultado</p>
             <div className="flex items-center justify-between">
               <span className="text-xs text-zinc-400">Acción:</span>
-              <span className="text-sm font-medium">{actionLabels[result.action]}</span>
+              <span className={`text-sm font-medium ${actionColors[result.action]}`}>
+                {actionLabels[result.action]}
+              </span>
             </div>
             {result.matched && (
               <div className="flex items-center justify-between">
@@ -230,19 +317,51 @@ export default function VoicePage() {
                 <span className="text-sm font-medium text-emerald-400">{result.matched}</span>
               </div>
             )}
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-400">Cantidad:</span>
-              <span className="text-sm font-medium">{result.quantity}</span>
-            </div>
+            {result.detail && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-400">Detalle:</span>
+                <span className="text-sm font-medium">{result.detail}</span>
+              </div>
+            )}
+            {result.action !== "category" && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-400">Cantidad:</span>
+                <span className="text-sm font-medium">{result.quantity}</span>
+              </div>
+            )}
+            <Button
+              onClick={() => { setResult(null); setTranscript(""); }}
+              variant="ghost"
+              size="sm"
+              className="w-full mt-2"
+            >
+              Nuevo comando
+            </Button>
+          </div>
+        )}
+
+        {history.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs text-zinc-500 font-semibold">Historial</p>
+            {history.map((h, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs text-zinc-500">
+                <span className={h.ok ? "text-emerald-500" : "text-red-500"}>
+                  {h.ok ? "✓" : "✗"}
+                </span>
+                <span className="truncate">{h.text}</span>
+              </div>
+            ))}
           </div>
         )}
 
         <div className="bg-zinc-800/50 rounded-xl p-3">
-          <p className="text-xs text-zinc-500 font-semibold mb-2">Ejemplos:</p>
+          <p className="text-xs text-zinc-500 font-semibold mb-2">Comandos disponibles:</p>
           <div className="space-y-1.5 text-xs text-zinc-400">
-            <p>• &quot;Vender 2 botellas de Singani Casa Real&quot;</p>
-            <p>• &quot;Llegó 5 unidades de cerveza Paceña&quot;</p>
-            <p>• &quot;¿Cuánto stock hay de ron?&quot;</p>
+            <p><span className="text-emerald-400">Ventas:</span> &quot;Vender 2 botellas de Singani&quot;</p>
+            <p><span className="text-blue-400">Llegadas:</span> &quot;Llegaron 5 unidades de cerveza Paceña&quot;</p>
+            <p><span className="text-violet-400">Stock:</span> &quot;¿Cuánto hay de ron?&quot;</p>
+            <p><span className="text-amber-400">Precio:</span> &quot;¿Cuánto cuesta el whisky?&quot;</p>
+            <p><span className="text-pink-400">Categorías:</span> &quot;Crear categoría cerveza&quot;</p>
           </div>
         </div>
       </div>
