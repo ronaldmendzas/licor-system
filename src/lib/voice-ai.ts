@@ -54,6 +54,8 @@ export interface ParsedCommand {
     matchedProduct: any | null;
     quantity: number | null;
     price: number | null;
+    sellPrice: number | null;          // precio de venta
+    buyPrice: number | null;           // precio de compra
     person: string | null;
     categoryName: string | null;
     matchedCategory: any | null;
@@ -61,6 +63,7 @@ export interface ParsedCommand {
     matchedSupplier: any | null;
     destination: string | null;        // for navigation
     names: string[];                   // multiple names (batch create)
+    newProductName: string | null;     // name for NEW product creation
   };
   raw: string;
 }
@@ -555,6 +558,116 @@ function extractDestination(text: string): string | null {
   return null;
 }
 
+/* ── Product creation entity extraction ─────────────────────────── */
+
+function extractNewProductName(text: string): string | null {
+  const norm = normalize(text);
+
+  // Patterns: "crear producto X ...", "nuevo producto X ...", "agregar producto X ...", "registrar producto X ..."
+  const triggers = [
+    /(?:crear?|nuevo|nueva|agreg\w*|registr\w*|anadi\w*|meter)\s+(?:el\s+)?(?:producto\s+)?/,
+    /(?:producto\s+(?:nuevo|nueva)\s+)/,
+    /(?:nuevo\s+producto\s+)/,
+  ];
+
+  let afterTrigger = "";
+  for (const trigger of triggers) {
+    const m = norm.match(trigger);
+    if (m && m.index !== undefined) {
+      afterTrigger = norm.slice(m.index + m[0].length).trim();
+      break;
+    }
+  }
+
+  if (!afterTrigger) return null;
+
+  // Remove everything from the first modifier keyword onwards
+  const modifiers = /\s+(?:en\s+(?:la\s+)?categori|categori|precio|a\s+\d|por\s+\d|con\s+stock|stock\s+\d|compra|venta|minimo|bolivian|bs\b|\d+\s*bs)/;
+  const modMatch = afterTrigger.match(modifiers);
+  const productName = modMatch && modMatch.index !== undefined
+    ? afterTrigger.slice(0, modMatch.index).trim()
+    : afterTrigger.trim();
+
+  if (!productName || productName.length < 2) return null;
+
+  // Capitalize each word
+  return productName
+    .split(/\s+/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function extractCategoryFromText(text: string): string | null {
+  const norm = normalize(text);
+
+  // "en categoría X", "de la categoría X", "categoría X"
+  const patterns = [
+    /(?:en\s+(?:la\s+)?|de\s+(?:la\s+)?)?categori\w*\s+(.+?)(?:\s+(?:precio|a\s+\d|por\s+\d|con\s+stock|stock|compra|venta|minimo|\d+\s*bs)|$)/,
+  ];
+
+  for (const p of patterns) {
+    const m = norm.match(p);
+    if (m && m[1]) {
+      const catName = m[1].trim().replace(/\s+(?:y|,)\s*$/, "").trim();
+      if (catName.length >= 2) {
+        return catName.charAt(0).toUpperCase() + catName.slice(1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractSellPrice(text: string): number | null {
+  const processed = replaceNumberWords(normalize(text));
+
+  // "precio venta 15" or "venta 15 bs" or "precio de venta 15"
+  const sellMatch = processed.match(/(?:precio\s+(?:de\s+)?)?venta\s+(?:a\s+)?(\d+(?:\.\d+)?)/);
+  if (sellMatch) return parseFloat(sellMatch[1]);
+
+  // "a 15 bs" or "precio 15" (default = sell price if no "compra" nearby)
+  const genericPriceMatch = processed.match(/(?:a|precio)\s+(\d+(?:\.\d+)?)\s*(?:bs|bolivian|pesos|bob)?/);
+  if (genericPriceMatch) {
+    // Make sure it's not marked as "compra"
+    const before = processed.slice(0, genericPriceMatch.index ?? 0);
+    if (!before.match(/compr\w*\s*$/)) {
+      return parseFloat(genericPriceMatch[1]);
+    }
+  }
+
+  // "15 bs" standalone (if no compra context)
+  const bsMatch = processed.match(/(\d+(?:\.\d+)?)\s*(?:bs|bolivian|pesos|bob)/);
+  if (bsMatch) {
+    const idx = bsMatch.index ?? 0;
+    const before = processed.slice(Math.max(0, idx - 20), idx);
+    if (!before.match(/compr\w*/)) {
+      return parseFloat(bsMatch[1]);
+    }
+  }
+
+  return null;
+}
+
+function extractBuyPrice(text: string): number | null {
+  const processed = replaceNumberWords(normalize(text));
+
+  // "precio compra 10" or "compra 10 bs" or "costo 10"
+  const buyMatch = processed.match(/(?:precio\s+(?:de\s+)?)?(?:compra|costo)\s+(?:a\s+)?(\d+(?:\.\d+)?)/);
+  if (buyMatch) return parseFloat(buyMatch[1]);
+
+  return null;
+}
+
+function extractInitialStock(text: string): number | null {
+  const processed = replaceNumberWords(normalize(text));
+
+  // "con stock 10" or "stock inicial 5" or "stock 20"
+  const stockMatch = processed.match(/(?:con\s+)?stock\s+(?:inicial\s+)?(\d+)/);
+  if (stockMatch) return parseInt(stockMatch[1]);
+
+  return null;
+}
+
 function fuzzyMatchProduct(text: string, products: any[]): any | null {
   if (!products.length) return null;
   const fuse = new Fuse(products, {
@@ -680,6 +793,9 @@ export function parseCommand(
   let names: string[] = [];
   let categoryName: string | null = null;
   let supplierName: string | null = null;
+  let newProductName: string | null = null;
+  let sellPrice: number | null = null;
+  let buyPrice: number | null = null;
 
   if (bestIntent === "create_category" || bestIntent === "delete_category") {
     names = extractNames(text);
@@ -687,6 +803,27 @@ export function parseCommand(
   } else if (bestIntent === "create_supplier" || bestIntent === "delete_supplier") {
     names = extractNames(text);
     if (names.length > 0) supplierName = names[0];
+  }
+
+  // For create_product, extract the new product name, category, and prices
+  if (bestIntent === "create_product") {
+    newProductName = extractNewProductName(text);
+    categoryName = extractCategoryFromText(text);
+    sellPrice = extractSellPrice(text);
+    buyPrice = extractBuyPrice(text);
+
+    // If no explicit category match but we extracted a name, try fuzzy match
+    if (categoryName && !matchedCategory) {
+      const catMatch = fuzzyMatchCategory(categoryName, context.categories);
+      if (catMatch) {
+        // We have an existing category match — update matchedCategory below
+      }
+    }
+  }
+
+  // Also extract category for other intents that mention categories
+  if (!categoryName && (bestIntent === "list_products" || bestIntent === "search_product")) {
+    categoryName = extractCategoryFromText(text);
   }
 
   return {
@@ -697,13 +834,18 @@ export function parseCommand(
       matchedProduct,
       quantity: quantity ?? (bestIntent === "register_sale" || bestIntent === "register_arrival" ? 1 : null),
       price,
+      sellPrice,
+      buyPrice,
       person,
-      categoryName,
-      matchedCategory,
+      categoryName: categoryName ?? (matchedCategory?.nombre ?? null),
+      matchedCategory: bestIntent === "create_product" && categoryName
+        ? fuzzyMatchCategory(categoryName, context.categories) ?? matchedCategory
+        : matchedCategory,
       supplierName,
       matchedSupplier,
       destination,
       names,
+      newProductName,
     },
     raw: text,
   };
@@ -721,6 +863,7 @@ Puedo entender comandos como:
 🔍 **Stock** — "¿Cuánto hay de whisky?", "¿Queda vodka?"
 💰 **Precios** — "¿Cuánto cuesta el Singani?", "Precio del ron"
 ✏️ **Cambiar precio** — "Pon el precio del ron a 45 bs"
+🆕 **Crear producto** — "Crear producto Cerveza Paceña en categoría Cervezas precio 15 bs"
 📁 **Categorías** — "Crear categoría Cerveza", "¿Qué categorías hay?"
 👤 **Proveedores** — "Nuevo proveedor Juan López", "Ver proveedores"
 🤝 **Préstamos** — "Prestar 2 cervezas a Carlos", "Ya pagó María"

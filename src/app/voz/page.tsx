@@ -323,8 +323,95 @@ async function executeCommand(
 
     // ── CREAR PRODUCTO ────────────────────────────────────────────
     case "create_product": {
-      helpers.router.push("/productos");
-      return { success: true, message: "📱 Te llevé a Productos. Usa el botón + para crear uno nuevo." };
+      const productName = entities.newProductName;
+      if (!productName) {
+        return {
+          success: false,
+          message: "No entendí el nombre del producto. Dí algo como:\n• \"Crear producto Cerveza Paceña en categoría Cervezas precio 15 bs\"\n• \"Nuevo producto Ron Santa Cruz a 45 bs compra 30\"",
+        };
+      }
+
+      // Check if product already exists
+      const existing = helpers.products.find(
+        (p: any) => p.nombre.toLowerCase() === productName.toLowerCase()
+      );
+      if (existing) {
+        return {
+          success: false,
+          message: `⚠️ Ya existe un producto llamado "${existing.nombre}" en el inventario.`,
+        };
+      }
+
+      // Handle category: find existing or create new one
+      let categoriaId: string | null = null;
+      let categoryLabel = "Sin categoría";
+
+      if (entities.matchedCategory) {
+        categoriaId = entities.matchedCategory.id;
+        categoryLabel = entities.matchedCategory.nombre;
+      } else if (entities.categoryName) {
+        // Category doesn't exist — create it
+        const catName = entities.categoryName.charAt(0).toUpperCase() + entities.categoryName.slice(1);
+        const { data: newCat, error: catError } = await supabase
+          .from("categorias")
+          .insert({ nombre: catName })
+          .select()
+          .single();
+        if (!catError && newCat) {
+          categoriaId = newCat.id;
+          categoryLabel = newCat.nombre;
+          await helpers.loadCategories();
+        } else {
+          // Try to find by name in case of race condition
+          const found = helpers.categories.find(
+            (c: any) => c.nombre.toLowerCase() === catName.toLowerCase()
+          );
+          if (found) {
+            categoriaId = found.id;
+            categoryLabel = found.nombre;
+          }
+        }
+      }
+
+      // Extract prices
+      const precioVenta = entities.sellPrice ?? entities.price ?? 0;
+      const precioCompra = entities.buyPrice ?? 0;
+
+      // Insert the product
+      const { data: newProduct, error } = await supabase
+        .from("productos")
+        .insert({
+          nombre: productName,
+          categoria_id: categoriaId,
+          precio_venta: precioVenta,
+          precio_compra: precioCompra,
+          stock_actual: 0,
+          stock_minimo: 0,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return {
+          success: false,
+          message: `Error al crear el producto: ${error.message}`,
+        };
+      }
+
+      await helpers.loadProducts();
+
+      // Build details message
+      const details = [
+        `✅ Producto "${productName}" creado exitosamente!`,
+        `• Categoría: ${categoryLabel}`,
+      ];
+      if (precioVenta > 0) details.push(`• Precio venta: ${formatBs(precioVenta)}`);
+      if (precioCompra > 0) details.push(`• Precio compra: ${formatBs(precioCompra)}`);
+      if (precioVenta === 0 && precioCompra === 0) {
+        details.push(`💡 Tip: Podés decir "Pon el precio de ${productName} a X bs" para asignarle precio`);
+      }
+
+      return { success: true, message: details.join("\n") };
     }
 
     // ── EDITAR PRODUCTO ───────────────────────────────────────────
@@ -700,6 +787,14 @@ export default function VoicePage() {
                     &quot;Vender 2 botellas de Singani&quot;
                   </p>
                   <p>
+                    <span className="text-violet-400">Crear:</span>{" "}
+                    &quot;Crear producto Cerveza Paceña en categoría Cervezas a 15 bs&quot;
+                  </p>
+                  <p>
+                    <span className="text-pink-400">Categoría:</span>{" "}
+                    &quot;Crear categoría Whisky&quot;
+                  </p>
+                  <p>
                     <span className="text-blue-400">Llegada:</span>{" "}
                     &quot;Llegaron 10 cervezas Paceña&quot;
                   </p>
@@ -710,10 +805,6 @@ export default function VoicePage() {
                   <p>
                     <span className="text-indigo-400">Stock:</span>{" "}
                     &quot;¿Cuánto hay de ron?&quot;
-                  </p>
-                  <p>
-                    <span className="text-pink-400">Categoría:</span>{" "}
-                    &quot;Crear categoría cerveza&quot;
                   </p>
                   <p>
                     <span className="text-yellow-400">Préstamo:</span>{" "}
