@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
-import { Menu, Bell, AlertTriangle, Package, X, Send, MessageCircle } from "lucide-react";
+import { Menu, Bell, AlertTriangle, Package, X, MessageCircle, Share2, BellRing } from "lucide-react";
 import { useAppStore } from "@/store/app-store";
 import { formatBs } from "@/lib/utils";
 import { toast } from "sonner";
@@ -14,7 +14,6 @@ interface Props {
 export default function TopBar({ onOpenMenu, title }: Props) {
   const products = useAppStore((s) => s.products);
   const [open, setOpen] = useState(false);
-  const [sendingWa, setSendingWa] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const alerts = useMemo(() => {
@@ -43,20 +42,94 @@ export default function TopBar({ onOpenMenu, title }: Props) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  async function sendWhatsAppAlert() {
-    setSendingWa(true);
-    try {
-      const res = await fetch("/api/alertas/whatsapp");
-      const data = await res.json();
-      if (data.success) {
-        toast.success("Alerta enviada a WhatsApp");
-      } else {
-        toast.error(data.message || "No se pudo enviar. Configurá CallMeBot primero.");
-      }
-    } catch {
-      toast.error("Error al enviar alerta");
+  // Build WhatsApp message text
+  function buildAlertMessage(): string {
+    const now = new Date().toLocaleDateString("es-BO", {
+      day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    let msg = `📊 *Licor System - Alertas de Stock*\n📅 ${now}\n\n`;
+
+    if (alerts.length === 0) {
+      msg += "✅ Todo el inventario está en niveles normales.";
+      return msg;
     }
-    setSendingWa(false);
+
+    const sinStock = alerts.filter((a) => a.level === "sin_stock");
+    const criticos = alerts.filter((a) => a.level === "critico");
+    const bajos = alerts.filter((a) => a.level === "bajo");
+
+    if (sinStock.length > 0) {
+      msg += `🔴 *SIN STOCK (${sinStock.length}):*\n`;
+      for (const a of sinStock) {
+        msg += `  • ${a.product.nombre}`;
+        if (a.product.precio_compra > 0) msg += ` (reponer: ${formatBs(a.product.precio_compra)})`;
+        msg += `\n`;
+      }
+      msg += `\n`;
+    }
+
+    if (criticos.length > 0) {
+      msg += `🟡 *STOCK CRÍTICO (${criticos.length}):*\n`;
+      for (const a of criticos) {
+        msg += `  • ${a.product.nombre}: ${a.product.stock_actual}/${a.product.stock_minimo}\n`;
+      }
+      msg += `\n`;
+    }
+
+    if (bajos.length > 0) {
+      msg += `⚠️ *STOCK BAJO (${bajos.length}):*\n`;
+      for (const a of bajos) {
+        msg += `  • ${a.product.nombre}: ${a.product.stock_actual}/${a.product.stock_minimo}\n`;
+      }
+    }
+
+    msg += `\n📦 Total alertas: ${alerts.length}`;
+    return msg;
+  }
+
+  function shareWhatsApp() {
+    const msg = buildAlertMessage();
+    const encoded = encodeURIComponent(msg);
+    // wa.me without number opens WhatsApp share to pick any contact
+    window.open(`https://wa.me/?text=${encoded}`, "_blank");
+    toast.success("Abriendo WhatsApp...");
+  }
+
+  function shareGeneric() {
+    const msg = buildAlertMessage();
+    if (navigator.share) {
+      navigator.share({ title: "Alertas de Stock - Licor System", text: msg })
+        .catch(() => {});
+    } else {
+      navigator.clipboard.writeText(msg);
+      toast.success("Reporte copiado al portapapeles");
+    }
+  }
+
+  async function requestNotifications() {
+    if (!("Notification" in window)) {
+      toast.error("Tu navegador no soporta notificaciones");
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      toast.success("Notificaciones activadas");
+      // Show a test notification
+      if (alerts.length > 0) {
+        new Notification("Licor System - Stock Bajo", {
+          body: `${alerts.length} producto(s) necesitan reposición`,
+          icon: "/icons/icon-192x192.png",
+          badge: "/icons/icon-192x192.png",
+        });
+      } else {
+        new Notification("Licor System", {
+          body: "Notificaciones activadas. Te avisaremos cuando haya alertas.",
+          icon: "/icons/icon-192x192.png",
+        });
+      }
+    } else {
+      toast.error("Permiso de notificaciones denegado");
+    }
   }
 
   const levelColors: Record<string, string> = {
@@ -129,7 +202,7 @@ export default function TopBar({ onOpenMenu, title }: Props) {
               </div>
 
               {/* Alert list */}
-              <div className="max-h-72 overflow-y-auto">
+              <div className="max-h-64 overflow-y-auto">
                 {alerts.length === 0 ? (
                   <div className="py-8 text-center">
                     <Package className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
@@ -164,17 +237,32 @@ export default function TopBar({ onOpenMenu, title }: Props) {
                 )}
               </div>
 
-              {/* Footer with WhatsApp button */}
+              {/* Footer actions */}
               {alerts.length > 0 && (
-                <div className="px-4 py-3 border-t border-zinc-800/50">
+                <div className="px-4 py-3 border-t border-zinc-800/50 space-y-2">
                   <button
-                    onClick={sendWhatsAppAlert}
-                    disabled={sendingWa}
-                    className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors disabled:opacity-50"
+                    onClick={shareWhatsApp}
+                    className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
                   >
                     <MessageCircle className="w-4 h-4" />
-                    {sendingWa ? "Enviando..." : "Enviar resumen a WhatsApp"}
+                    Enviar por WhatsApp
                   </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={shareGeneric}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      Compartir
+                    </button>
+                    <button
+                      onClick={requestNotifications}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                    >
+                      <BellRing className="w-3.5 h-3.5" />
+                      Activar notificaciones
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
