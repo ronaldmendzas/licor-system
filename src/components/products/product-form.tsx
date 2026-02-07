@@ -9,6 +9,7 @@ import type { Product, Category } from "@/types";
 
 interface Props {
   product?: Product | null;
+  defaultCategoryId?: string;
   onClose: () => void;
 }
 
@@ -21,11 +22,11 @@ const EMPTY = {
   stock_minimo: "",
 };
 
-export default function ProductForm({ product, onClose }: Props) {
+export default function ProductForm({ product, defaultCategoryId, onClose }: Props) {
   const categories = useAppStore((s) => s.categories);
   const loadProducts = useAppStore((s) => s.loadProducts);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState(EMPTY);
+  const [form, setForm] = useState({ ...EMPTY, categoria_id: defaultCategoryId ?? "" });
 
   useEffect(() => {
     if (product) {

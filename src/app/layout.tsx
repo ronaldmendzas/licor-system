@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
+import OfflineProvider from "@/components/providers/offline-provider";
 
 export const metadata: Metadata = {
   title: "Licor System - Control de Inventario",
@@ -29,7 +30,9 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className="antialiased">
-        {children}
+        <OfflineProvider>
+          {children}
+        </OfflineProvider>
         <Toaster
           position="top-center"
           richColors

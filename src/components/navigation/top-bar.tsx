@@ -118,13 +118,13 @@ export default function TopBar({ onOpenMenu, title }: Props) {
       if (alerts.length > 0) {
         new Notification("Licor System - Stock Bajo", {
           body: `${alerts.length} producto(s) necesitan reposición`,
-          icon: "/icons/icon-192x192.png",
-          badge: "/icons/icon-192x192.png",
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
         });
       } else {
         new Notification("Licor System", {
           body: "Notificaciones activadas. Te avisaremos cuando haya alertas.",
-          icon: "/icons/icon-192x192.png",
+          icon: "/icon-192.png",
         });
       }
     } else {

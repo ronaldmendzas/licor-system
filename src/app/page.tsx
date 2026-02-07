@@ -6,6 +6,7 @@ import AppShell from "@/components/layout/app-shell";
 import SummaryCards from "@/components/dashboard/summary-cards";
 import StockAlerts from "@/components/dashboard/stock-alerts";
 import RecentActivity from "@/components/dashboard/recent-activity";
+import FestiveReminder from "@/components/festive-reminder";
 import { LoadingScreen } from "@/components/ui/loading";
 
 export default function DashboardPage() {
@@ -25,6 +26,7 @@ export default function DashboardPage() {
           <p className="text-sm text-zinc-500 mt-1">Resumen general del inventario</p>
         </div>
         <SummaryCards />
+        <FestiveReminder />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <StockAlerts />
           <RecentActivity />
