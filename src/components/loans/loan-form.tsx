@@ -20,6 +20,7 @@ export default function LoanForm({ onClose }: Props) {
   const [selected, setSelected] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState("1");
   const [person, setPerson] = useState("");
+  const [garantia, setGarantia] = useState("");
   const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
@@ -47,10 +48,12 @@ export default function LoanForm({ onClose }: Props) {
 
     setSaving(true);
     const supabase = createClient();
+    const garant = parseFloat(garantia) || 0;
     const { error } = await supabase.from("prestamos").insert({
       producto_id: selected.id,
       cantidad: qty,
       persona: person.trim(),
+      garantia_bs: garant,
     });
 
     if (error) {
@@ -127,6 +130,20 @@ export default function LoanForm({ onClose }: Props) {
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
             />
+          </div>
+
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1.5">Garantía (Bs.)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className={inputClass}
+              placeholder="0.00 — opcional"
+              value={garantia}
+              onChange={(e) => setGarantia(e.target.value)}
+            />
+            <p className="text-[11px] text-zinc-600 mt-1">Dinero que deja como depósito</p>
           </div>
 
           <div className="flex gap-2 pt-2">

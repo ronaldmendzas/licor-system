@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingScreen } from "@/components/ui/loading";
 import { Plus, Handshake, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, formatBs } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Loan } from "@/types";
 
@@ -30,7 +30,7 @@ export default function LoansPage() {
     const supabase = createClient();
     const { error } = await supabase
       .from("prestamos")
-      .update({ estado: "devuelto" })
+      .update({ estado: "devuelto", fecha_devolucion: new Date().toISOString() })
       .eq("id", loan.id);
     if (error) {
       toast.error("Error al actualizar");
@@ -89,6 +89,11 @@ export default function LoansPage() {
                         {l.cantidad} uds · {l.persona} · {formatDateTime(l.fecha_prestamo)}
                       </p>
                     </div>
+                    {l.garantia_bs > 0 && (
+                      <span className="text-xs font-medium text-amber-400 bg-amber-500/10 px-2 py-1 rounded-lg shrink-0">
+                        Garantía {formatBs(l.garantia_bs)}
+                      </span>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"
@@ -120,8 +125,14 @@ export default function LoansPage() {
                       </p>
                       <p className="text-xs text-zinc-500">
                         {l.cantidad} uds · {l.persona}
+                        {l.fecha_devolucion && ` · Devuelto ${formatDateTime(l.fecha_devolucion)}`}
                       </p>
                     </div>
+                    {l.garantia_bs > 0 && (
+                      <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-1 rounded-lg shrink-0">
+                        Garantía {formatBs(l.garantia_bs)}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
