@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { enviarWhatsApp } from "@/lib/whatsapp";
-import { formatearBs } from "@/lib/utils";
+import { sendWhatsApp } from "@/lib/whatsapp";
+import { formatBs } from "@/lib/utils";
 
 export async function GET() {
   try {
@@ -29,7 +29,7 @@ export async function GET() {
     const criticos = productos.filter((p) => p.stock_actual <= p.stock_minimo);
 
     let mensaje = `📊 *Resumen del día*\n`;
-    mensaje += `💰 Ventas: ${formatearBs(totalVentas)}\n`;
+    mensaje += `💰 Ventas: ${formatBs(totalVentas)}\n`;
     mensaje += `📦 Productos vendidos: ${totalProductos}\n`;
 
     if (criticos.length > 0) {
@@ -39,7 +39,7 @@ export async function GET() {
       }
     }
 
-    const enviado = await enviarWhatsApp(mensaje);
+    const enviado = await sendWhatsApp(mensaje);
 
     return NextResponse.json({
       success: enviado,

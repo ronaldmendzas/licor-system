@@ -132,7 +132,8 @@ export default function VoicePage() {
         await supabase.from("ventas").insert({
           producto_id: product.id,
           cantidad: parsed.quantity,
-          precio_venta: product.precio_venta,
+          precio_unitario: product.precio_venta,
+          total: product.precio_venta * parsed.quantity,
         });
         toast.success(`Venta: ${parsed.quantity}x ${product.nombre}`);
         await loadProducts();
