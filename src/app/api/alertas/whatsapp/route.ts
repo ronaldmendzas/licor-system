@@ -41,9 +41,24 @@ export async function GET() {
 
     const enviado = await sendWhatsApp(mensaje);
 
+    if (!enviado) {
+      const apiKey = process.env.NEXT_PUBLIC_CALLMEBOT_APIKEY ?? "";
+      if (!apiKey) {
+        return NextResponse.json({
+          success: false,
+          message: "WhatsApp no configurado. Necesitás obtener tu API key de CallMeBot. Enviá 'I allow callmebot to send me messages' al +34 644 51 22 23 en WhatsApp y te darán un apikey.",
+          needsSetup: true,
+        });
+      }
+      return NextResponse.json({
+        success: false,
+        message: "No se pudo enviar. Verificá tu número y API key de CallMeBot.",
+      });
+    }
+
     return NextResponse.json({
-      success: enviado,
-      message: enviado ? "Alerta enviada a WhatsApp" : "No se pudo enviar",
+      success: true,
+      message: "Alerta enviada a WhatsApp",
     });
   } catch {
     return NextResponse.json({ success: false, message: "Error interno" }, { status: 500 });
