@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Package, ShoppingCart, Truck, Handshake, Users,
   BarChart3, FileText, Settings, LogOut, X, Wine,
-  Camera, TrendingUp, ClipboardList,
+  Camera, TrendingUp, ClipboardList, FolderOpen,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -19,6 +19,7 @@ const SECTIONS = [
     title: "Principal",
     links: [
       { href: "/productos", icon: Package, label: "Productos" },
+      { href: "/categorias", icon: FolderOpen, label: "Categorías" },
       { href: "/ventas", icon: ShoppingCart, label: "Ventas" },
       { href: "/llegadas", icon: Truck, label: "Llegadas" },
       { href: "/prestamos", icon: Handshake, label: "Préstamos" },
