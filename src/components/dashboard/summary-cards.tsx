@@ -73,26 +73,3 @@ export default function SummaryCards() {
     </div>
   );
 }
-      bg: "bg-red-500/10",
-    },
-  ];
-
-  return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {cards.map((c) => (
-        <div
-          key={c.label}
-          className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800/50"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs text-zinc-500">{c.label}</span>
-            <div className={`w-8 h-8 rounded-lg ${c.bg} flex items-center justify-center`}>
-              <c.icon className={`w-4 h-4 ${c.color}`} />
-            </div>
-          </div>
-          <p className="text-xl font-bold">{c.value}</p>
-        </div>
-      ))}
-    </div>
-  );
-}

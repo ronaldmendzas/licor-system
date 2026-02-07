@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import AppShell from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import { Settings, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Category } from "@/types";
 import { useAppStore } from "@/store/app-store";

@@ -6,8 +6,8 @@ import { useAppStore } from "@/store/app-store";
 import { LoadingScreen } from "@/components/ui/loading";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import { formatBs, formatDate, getStartOfDay, getStartOfWeek, getStartOfMonth } from "@/lib/utils";
-import { FileText, Download } from "lucide-react";
+import { formatBs, getStartOfDay, getStartOfWeek, getStartOfMonth } from "@/lib/utils";
+import { FileText } from "lucide-react";
 
 type Period = "today" | "week" | "month" | "all";
 

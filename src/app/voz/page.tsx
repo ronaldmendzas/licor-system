@@ -5,7 +5,7 @@ import AppShell from "@/components/layout/app-shell";
 import { useAppStore } from "@/store/app-store";
 import { LoadingScreen } from "@/components/ui/loading";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Volume2 } from "lucide-react";
+import { Mic, MicOff } from "lucide-react";
 import Fuse from "fuse.js";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";

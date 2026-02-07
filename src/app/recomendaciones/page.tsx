@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import AppShell from "@/components/layout/app-shell";
 import { useAppStore } from "@/store/app-store";
 import { LoadingScreen } from "@/components/ui/loading";
-import { ClipboardList, ShoppingCart, AlertTriangle } from "lucide-react";
+import { ShoppingCart, AlertTriangle } from "lucide-react";
 import { formatBs } from "@/lib/utils";
 
 export default function RecommendationsPage() {

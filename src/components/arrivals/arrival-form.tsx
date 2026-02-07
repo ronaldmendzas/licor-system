@@ -139,7 +139,8 @@ export default function ArrivalForm({ onClose }: Props) {
           <div>
             <label className="block text-xs text-zinc-400 mb-1.5">Proveedor</label>
             <select
-              className={inputClass}
+              className={`${inputClass} appearance-none bg-[length:1.25rem] bg-[position:right_0.5rem_center] bg-no-repeat`}
+              style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2371717a' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E\")" }}
               value={supplierId}
               onChange={(e) => setSupplierId(e.target.value)}
             >
