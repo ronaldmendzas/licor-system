@@ -31,18 +31,16 @@ export default function SuppliersPage() {
     setModalOpen(true);
   }
 
-  if (loading) return <LoadingScreen />;
-
   return (
     <AppShell>
+      {loading ? <LoadingScreen /> : (<>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold">Proveedores</h1>
-            <p className="text-sm text-zinc-500">{suppliers.length} proveedores</p>
+            <h1 className="text-2xl font-bold">Proveedores</h1>
+            <p className="text-sm text-zinc-500 mt-0.5">{suppliers.length} proveedores</p>
           </div>
-          <Button onClick={openNew} size="sm">
-            <Plus className="w-4 h-4 mr-1" />
+          <Button onClick={openNew} icon={<Plus className="w-4 h-4" />}>
             Nuevo
           </Button>
         </div>
@@ -88,6 +86,7 @@ export default function SuppliersPage() {
       >
         <SupplierForm supplier={editing} onClose={() => setModalOpen(false)} />
       </Modal>
+      </>)}
     </AppShell>
   );
 }

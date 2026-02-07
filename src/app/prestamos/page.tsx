@@ -44,21 +44,19 @@ export default function LoansPage() {
     setModalOpen(false);
   }
 
-  if (loading) return <LoadingScreen />;
-
   const pending = loans.filter((l) => l.estado === "pendiente");
   const returned = loans.filter((l) => l.estado === "devuelto");
 
   return (
     <AppShell>
+      {loading ? <LoadingScreen /> : (<>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold">Préstamos</h1>
-            <p className="text-sm text-zinc-500">{pending.length} pendientes</p>
+            <h1 className="text-2xl font-bold">Préstamos</h1>
+            <p className="text-sm text-zinc-500 mt-0.5">{pending.length} pendientes</p>
           </div>
-          <Button onClick={() => setModalOpen(true)} size="sm">
-            <Plus className="w-4 h-4 mr-1" />
+          <Button onClick={() => setModalOpen(true)} icon={<Plus className="w-4 h-4" />}>
             Nuevo
           </Button>
         </div>
@@ -135,6 +133,7 @@ export default function LoansPage() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo Préstamo">
         <LoanForm onClose={handleClose} />
       </Modal>
+      </>)}
     </AppShell>
   );
 }

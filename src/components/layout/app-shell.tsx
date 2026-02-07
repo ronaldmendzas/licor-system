@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import TopBar from "@/components/navigation/top-bar";
 import SideMenu from "@/components/navigation/side-menu";
 import BottomNav from "@/components/navigation/bottom-nav";
-import { useAppStore } from "@/store/app-store";
 
 interface Props {
   children: React.ReactNode;
@@ -13,20 +12,17 @@ interface Props {
 
 export default function AppShell({ children, title }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const loadAll = useAppStore((s) => s.loadAll);
-
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
 
   return (
-    <div className="min-h-screen pb-20 lg:pb-0 lg:pl-64">
-      <TopBar onOpenMenu={() => setMenuOpen(true)} title={title} />
+    <div className="min-h-screen bg-zinc-950">
       <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
-      <main className="px-4 py-5 max-w-3xl mx-auto animate-fade-in lg:px-8 lg:py-6">
-        {children}
-      </main>
-      <BottomNav />
+      <div className="lg:ml-64 flex flex-col min-h-screen">
+        <TopBar onOpenMenu={() => setMenuOpen(true)} title={title} />
+        <main className="flex-1 px-4 py-5 pb-24 sm:px-6 lg:px-8 lg:py-6 lg:pb-6 w-full max-w-6xl mx-auto animate-fade-in">
+          {children}
+        </main>
+        <BottomNav />
+      </div>
     </div>
   );
 }

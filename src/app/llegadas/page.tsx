@@ -46,18 +46,16 @@ export default function ArrivalsPage() {
     loadArrivals();
   }
 
-  if (loading) return <LoadingScreen />;
-
   return (
     <AppShell>
+      {loading ? <LoadingScreen /> : (<>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold">Llegadas</h1>
-            <p className="text-sm text-zinc-500">{arrivals.length} registros</p>
+            <h1 className="text-2xl font-bold">Llegadas</h1>
+            <p className="text-sm text-zinc-500 mt-0.5">{arrivals.length} registros</p>
           </div>
-          <Button onClick={() => setModalOpen(true)} size="sm">
-            <Plus className="w-4 h-4 mr-1" />
+          <Button onClick={() => setModalOpen(true)} icon={<Plus className="w-4 h-4" />}>
             Nueva Llegada
           </Button>
         </div>
@@ -71,7 +69,7 @@ export default function ArrivalsPage() {
             {arrivals.map((a) => (
               <div
                 key={a.id}
-                className="bg-zinc-900 rounded-xl p-3 border border-zinc-800/50 flex items-center gap-3"
+                className="bg-zinc-900/80 rounded-xl p-3.5 border border-zinc-800/50 hover:bg-zinc-900 transition-colors flex items-center gap-3"
               >
                 <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
                   <ArrowDown className="w-4 h-4 text-blue-400" />
@@ -99,6 +97,7 @@ export default function ArrivalsPage() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nueva Llegada">
         <ArrivalForm onClose={handleClose} />
       </Modal>
+      </>)}
     </AppShell>
   );
 }

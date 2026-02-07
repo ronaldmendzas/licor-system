@@ -46,45 +46,45 @@ export default function SalesPage() {
     loadSales();
   }
 
-  if (loading) return <LoadingScreen />;
-
   return (
     <AppShell>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+      {loading ? <LoadingScreen /> : (<>
+      <div className="space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold">Ventas</h1>
-            <p className="text-sm text-zinc-500">{sales.length} registros</p>
+            <h1 className="text-2xl font-bold">Ventas</h1>
+            <p className="text-sm text-zinc-500 mt-0.5">{sales.length} registros</p>
           </div>
-          <Button onClick={() => setModalOpen(true)} size="sm">
-            <Plus className="w-4 h-4 mr-1" />
+          <Button onClick={() => setModalOpen(true)} icon={<Plus className="w-4 h-4" />}>
             Nueva Venta
           </Button>
         </div>
 
         {sales.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-16">
+            <ArrowUp className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
             <p className="text-zinc-500 text-sm">No hay ventas registradas</p>
+            <p className="text-zinc-600 text-xs mt-1">Las ventas aparecerán aquí</p>
           </div>
         ) : (
           <div className="space-y-2">
             {sales.map((s) => (
               <div
                 key={s.id}
-                className="bg-zinc-900 rounded-xl p-3 border border-zinc-800/50 flex items-center gap-3"
+                className="bg-zinc-900/80 rounded-xl p-3.5 border border-zinc-800/50 flex items-center gap-3 hover:bg-zinc-900 transition-colors"
               >
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
                   <ArrowUp className="w-4 h-4 text-emerald-400" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">
                     {s.productos?.nombre ?? "Producto"}
                   </p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-zinc-500 mt-0.5">
                     {s.cantidad} uds · {formatDateTime(s.fecha)}
                   </p>
                 </div>
-                <p className="text-sm font-semibold text-emerald-400 shrink-0">
+                <p className="text-sm font-bold text-emerald-400 shrink-0">
                   +{formatBs(s.total)}
                 </p>
               </div>
@@ -96,6 +96,7 @@ export default function SalesPage() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nueva Venta">
         <SaleForm onClose={handleClose} />
       </Modal>
+      </>)}
     </AppShell>
   );
 }

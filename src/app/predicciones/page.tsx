@@ -40,8 +40,6 @@ export default function PredictionsPage() {
       .slice(0, 15);
   }, [products]);
 
-  if (loading) return <LoadingScreen />;
-
   const riskColors = {
     high: "text-red-400 bg-red-500/10",
     medium: "text-amber-400 bg-amber-500/10",
@@ -52,9 +50,10 @@ export default function PredictionsPage() {
 
   return (
     <AppShell>
+      {loading ? <LoadingScreen /> : (<>
       <div className="space-y-4">
         <div>
-          <h1 className="text-xl font-bold">Predicciones</h1>
+          <h1 className="text-2xl font-bold">Predicciones</h1>
           <p className="text-sm text-zinc-500">Estimación de agotamiento de stock</p>
         </div>
 
@@ -102,6 +101,7 @@ export default function PredictionsPage() {
           </div>
         )}
       </div>
+      </>)}
     </AppShell>
   );
 }

@@ -32,13 +32,12 @@ export default function RecommendationsPage() {
     [recommendations]
   );
 
-  if (loading) return <LoadingScreen />;
-
   return (
     <AppShell>
+      {loading ? <LoadingScreen /> : (<>
       <div className="space-y-4">
         <div>
-          <h1 className="text-xl font-bold">Compras Sugeridas</h1>
+          <h1 className="text-2xl font-bold">Compras Sugeridas</h1>
           <p className="text-sm text-zinc-500">
             {recommendations.length} productos necesitan reposición
           </p>
@@ -81,6 +80,7 @@ export default function RecommendationsPage() {
           </div>
         )}
       </div>
+      </>)}
     </AppShell>
   );
 }

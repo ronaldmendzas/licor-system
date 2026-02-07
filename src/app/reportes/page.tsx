@@ -77,8 +77,6 @@ export default function ReportsPage() {
     loadReport();
   }, [period]);
 
-  if (loading) return <LoadingScreen />;
-
   const periods: { key: Period; label: string }[] = [
     { key: "today", label: "Hoy" },
     { key: "week", label: "Semana" },
@@ -88,10 +86,11 @@ export default function ReportsPage() {
 
   return (
     <AppShell>
+      {loading ? <LoadingScreen /> : (<>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold">Reportes</h1>
+            <h1 className="text-2xl font-bold">Reportes</h1>
             <p className="text-sm text-zinc-500">Resumen financiero</p>
           </div>
           <FileText className="w-5 h-5 text-zinc-600" />
@@ -133,6 +132,7 @@ export default function ReportsPage() {
           </p>
         </div>
       </div>
+      </>)}
     </AppShell>
   );
 }

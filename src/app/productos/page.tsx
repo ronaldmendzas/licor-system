@@ -9,7 +9,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
 import { LoadingScreen } from "@/components/ui/loading";
-import { Plus } from "lucide-react";
+import { Plus, Package } from "lucide-react";
 import type { Product, Category } from "@/types";
 
 export default function ProductsPage() {
@@ -53,56 +53,58 @@ export default function ProductsPage() {
     setModalOpen(true);
   }
 
-  if (loading) return <LoadingScreen />;
-
   return (
     <AppShell>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+      {loading ? <LoadingScreen /> : (<>
+      <div className="space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold">Productos</h1>
-            <p className="text-sm text-zinc-500">{products.length} productos</p>
+            <h1 className="text-2xl font-bold">Productos</h1>
+            <p className="text-sm text-zinc-500 mt-0.5">{products.length} productos registrados</p>
           </div>
-          <Button onClick={openNew} size="sm">
-            <Plus className="w-4 h-4 mr-1" />
-            Nuevo
+          <Button onClick={openNew} icon={<Plus className="w-4 h-4" />}>
+            Nuevo Producto
           </Button>
         </div>
 
-        <SearchBar value={search} onChange={setSearch} placeholder="Buscar productos..." />
-
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          <button
-            onClick={() => setSelectedCategory("all")}
-            className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              selectedCategory === "all"
-                ? "bg-violet-500/15 text-violet-400"
-                : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
-            }`}
-          >
-            Todos
-          </button>
-          {categories.map((c: Category) => (
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1">
+            <SearchBar value={search} onChange={setSearch} placeholder="Buscar productos..." />
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide sm:pb-0">
             <button
-              key={c.id}
-              onClick={() => setSelectedCategory(c.id)}
-              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                selectedCategory === c.id
-                  ? "bg-violet-500/15 text-violet-400"
-                  : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
+              onClick={() => setSelectedCategory("all")}
+              className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-medium transition-colors ${
+                selectedCategory === "all"
+                  ? "bg-violet-500/15 text-violet-400 border border-violet-500/20"
+                  : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-zinc-200"
               }`}
             >
-              {c.nombre}
+              Todos
             </button>
-          ))}
+            {categories.map((c: Category) => (
+              <button
+                key={c.id}
+                onClick={() => setSelectedCategory(c.id)}
+                className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-medium transition-colors ${
+                  selectedCategory === c.id
+                    ? "bg-violet-500/15 text-violet-400 border border-violet-500/20"
+                    : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-zinc-200"
+                }`}
+              >
+                {c.nombre}
+              </button>
+            ))}
+          </div>
         </div>
 
         {filtered.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-16">
+            <Package className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
             <p className="text-zinc-500 text-sm">No se encontraron productos</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filtered.map((p) => (
               <ProductCard key={p.id} product={p} onClick={() => openEdit(p)} />
             ))}
@@ -120,6 +122,7 @@ export default function ProductsPage() {
           onClose={() => setModalOpen(false)}
         />
       </Modal>
+      </>)}
     </AppShell>
   );
 }

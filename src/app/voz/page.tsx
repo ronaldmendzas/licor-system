@@ -163,8 +163,6 @@ export default function VoicePage() {
     setProcessing(false);
   }
 
-  if (loading) return <LoadingScreen />;
-
   const actionLabels = {
     sale: "Venta",
     arrival: "Llegada",
@@ -174,6 +172,7 @@ export default function VoicePage() {
 
   return (
     <AppShell>
+      {loading ? <LoadingScreen /> : (<>
       <div className="space-y-4">
         <div>
           <h1 className="text-xl font-bold">Voz IA</h1>
@@ -246,6 +245,7 @@ export default function VoicePage() {
           </div>
         </div>
       </div>
+      </>)}
     </AppShell>
   );
 }

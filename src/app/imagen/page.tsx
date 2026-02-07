@@ -81,13 +81,12 @@ export default function ImagePage() {
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  if (loading) return <LoadingScreen />;
-
   return (
     <AppShell>
+      {loading ? <LoadingScreen /> : (<>
       <div className="space-y-4">
         <div>
-          <h1 className="text-xl font-bold">IA Imagen</h1>
+          <h1 className="text-2xl font-bold">IA Imagen</h1>
           <p className="text-sm text-zinc-500">
             Escanea listas de productos con la cámara
           </p>
@@ -161,6 +160,7 @@ export default function ImagePage() {
           </>
         )}
       </div>
+      </>)}
     </AppShell>
   );
 }

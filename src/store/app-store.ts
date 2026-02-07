@@ -66,15 +66,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   loadAll: async () => {
+    if (get().loading) return;
     set({ loading: true });
-    const state = get();
-    await Promise.all([
-      state.loadCategories(),
-      state.loadProducts(),
-      state.loadSuppliers(),
-      state.loadLoans(),
-    ]);
-    set({ loading: false });
+    try {
+      const state = get();
+      await Promise.all([
+        state.loadCategories(),
+        state.loadProducts(),
+        state.loadSuppliers(),
+        state.loadLoans(),
+      ]);
+    } finally {
+      set({ loading: false });
+    }
   },
 
   getAlerts: () => {

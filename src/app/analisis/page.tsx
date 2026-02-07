@@ -39,13 +39,12 @@ export default function AnalysisPage() {
     return { categoryStats, highestMargin, lowestMargin };
   }, [products]);
 
-  if (loading) return <LoadingScreen />;
-
   return (
     <AppShell>
+      {loading ? <LoadingScreen /> : (<>
       <div className="space-y-4">
         <div>
-          <h1 className="text-xl font-bold">Análisis</h1>
+          <h1 className="text-2xl font-bold">Análisis</h1>
           <p className="text-sm text-zinc-500">Métricas del inventario</p>
         </div>
 
@@ -104,6 +103,7 @@ export default function AnalysisPage() {
           )}
         </div>
       </div>
+      </>)}
     </AppShell>
   );
 }

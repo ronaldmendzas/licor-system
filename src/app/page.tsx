@@ -16,14 +16,13 @@ export default function DashboardPage() {
     loadAll();
   }, [loadAll]);
 
-  if (loading) return <LoadingScreen />;
-
   return (
     <AppShell>
+      {loading ? <LoadingScreen /> : <>
       <div className="space-y-6">
         <div>
-          <h1 className="text-xl font-bold">Dashboard</h1>
-          <p className="text-sm text-zinc-500">Resumen del inventario</p>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-sm text-zinc-500 mt-1">Resumen general del inventario</p>
         </div>
         <SummaryCards />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -31,6 +30,7 @@ export default function DashboardPage() {
           <RecentActivity />
         </div>
       </div>
+      </>}
     </AppShell>
   );
 }

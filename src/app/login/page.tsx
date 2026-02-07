@@ -38,7 +38,7 @@ export default function LoginPage() {
     "w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/40 transition-all";
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-950">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-950">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl bg-violet-500/15 flex items-center justify-center mx-auto mb-4">
@@ -92,7 +92,7 @@ export default function LoginPage() {
             <p className="text-sm text-red-400 text-center">{error}</p>
           )}
 
-          <Button type="submit" disabled={loading} className="w-full">
+          <Button type="submit" loading={loading} className="w-full h-11">
             {loading ? "Ingresando..." : "Ingresar"}
           </Button>
         </form>
