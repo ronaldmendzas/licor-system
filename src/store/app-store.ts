@@ -8,15 +8,18 @@ interface AppState {
   suppliers: Supplier[];
   loans: Loan[];
   loading: boolean;
+  lastLoadedAt: number;
   search: string;
   setSearch: (s: string) => void;
   loadCategories: () => Promise<void>;
   loadProducts: () => Promise<void>;
   loadSuppliers: () => Promise<void>;
   loadLoans: () => Promise<void>;
-  loadAll: () => Promise<void>;
+  loadAll: (options?: { force?: boolean }) => Promise<void>;
   getAlerts: () => StockAlert[];
 }
+
+const LOAD_TTL_MS = 45_000;
 
 function getStockLevel(product: Product): StockLevel {
   if (product.stock_actual <= product.stock_minimo) return "critical";
@@ -30,6 +33,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   suppliers: [],
   loans: [],
   loading: false,
+  lastLoadedAt: 0,
   search: "",
 
   setSearch: (search) => set({ search }),
@@ -65,19 +69,39 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (data) set({ loans: data });
   },
 
-  loadAll: async () => {
+  loadAll: async (options) => {
+    const force = options?.force ?? false;
+    const state = get();
+
+    if (state.loading) return;
+
+    const hasCache =
+      state.products.length > 0 ||
+      state.categories.length > 0 ||
+      state.suppliers.length > 0 ||
+      state.loans.length > 0;
+
+    const isFresh =
+      state.lastLoadedAt > 0 && Date.now() - state.lastLoadedAt < LOAD_TTL_MS;
+
+    if (!force && hasCache && isFresh) return;
+
+    const shouldShowLoading = !hasCache;
+
     if (get().loading) return;
-    set({ loading: true });
+    if (shouldShowLoading) set({ loading: true });
+
     try {
-      const state = get();
+      const current = get();
       await Promise.all([
-        state.loadCategories(),
-        state.loadProducts(),
-        state.loadSuppliers(),
-        state.loadLoans(),
+        current.loadCategories(),
+        current.loadProducts(),
+        current.loadSuppliers(),
+        current.loadLoans(),
       ]);
+      set({ lastLoadedAt: Date.now() });
     } finally {
-      set({ loading: false });
+      if (shouldShowLoading) set({ loading: false });
     }
   },
 

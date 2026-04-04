@@ -85,7 +85,7 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
 
     if (synced > 0) {
       await clearPendingMutations();
-      await loadAll();
+      await loadAll({ force: true });
       toast.success(`${synced} cambio(s) sincronizado(s) con el servidor`);
     }
     setSyncing(false);
@@ -100,7 +100,7 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
         if (wasOffline.current) {
           setShowBanner(true);
           syncPendingMutations();
-          loadAll();
+          loadAll({ force: true });
           setTimeout(() => setShowBanner(false), 4000);
         }
         wasOffline.current = false;
