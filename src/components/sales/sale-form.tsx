@@ -67,7 +67,11 @@ export default function SaleForm({ onClose }: Props) {
     onClose();
   }
 
-  const total = selected ? selected.precio_venta * (parseInt(quantity) || 0) : 0;
+  const qty = parseInt(quantity) || 0;
+  const total = selected ? selected.precio_venta * qty : 0;
+  const totalCost = selected ? selected.precio_compra * qty : 0;
+  const totalProfit = total - totalCost;
+  const unitProfit = selected ? selected.precio_venta - selected.precio_compra : 0;
 
   return (
     <div className="space-y-4">
@@ -112,7 +116,7 @@ export default function SaleForm({ onClose }: Props) {
               <div>
                 <p className="text-sm font-medium">{selected.nombre}</p>
                 <p className="text-xs text-zinc-500">
-                  Stock: {selected.stock_actual} · Precio: {formatBs(selected.precio_venta)}
+                  Stock: {selected.stock_actual} · Venta: {formatBs(selected.precio_venta)} · Compra: {formatBs(selected.precio_compra)}
                 </p>
               </div>
               <button
@@ -130,17 +134,33 @@ export default function SaleForm({ onClose }: Props) {
               type="number"
               min="1"
               max={selected.stock_actual}
+              title="Cantidad a vender"
+              placeholder="Cantidad"
               className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/40 transition-all"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
             />
           </div>
 
-          <div className="bg-zinc-800/50 rounded-xl p-3 flex items-center justify-between">
-            <span className="text-sm text-zinc-400">Total</span>
-            <span className="text-lg font-bold text-emerald-400">
-              {formatBs(total)}
-            </span>
+          <div className="bg-zinc-800/50 rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-zinc-400">Total venta</span>
+              <span className="font-bold text-emerald-400">{formatBs(total)}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-zinc-500">Costo total</span>
+              <span className="text-zinc-300">{formatBs(totalCost)}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-zinc-500">Ganancia por unidad</span>
+              <span className={unitProfit >= 0 ? "text-emerald-400" : "text-red-400"}>{formatBs(unitProfit)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm pt-1 border-t border-zinc-700/50">
+              <span className="text-zinc-300 font-medium">Ganancia estimada</span>
+              <span className={`font-bold ${totalProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                {formatBs(totalProfit)}
+              </span>
+            </div>
           </div>
 
           <div className="flex gap-2 pt-2">

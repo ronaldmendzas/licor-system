@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Package, ShoppingCart, Truck, Handshake, Users,
   BarChart3, FileText, Settings, LogOut, X, Wine,
-  Camera, TrendingUp, ClipboardList, FolderOpen, Calendar,
+  Camera, TrendingUp, ClipboardList, FolderOpen, Calendar, BadgeDollarSign,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -32,6 +32,7 @@ const SECTIONS = [
       { href: "/proveedores", icon: Users, label: "Proveedores" },
       { href: "/analisis", icon: BarChart3, label: "Análisis" },
       { href: "/predicciones", icon: TrendingUp, label: "Predicciones" },
+      { href: "/ganancias", icon: BadgeDollarSign, label: "Ganancias" },
       { href: "/recomendaciones", icon: ClipboardList, label: "Compras" },
       { href: "/reportes", icon: FileText, label: "Reportes" },
     ],
@@ -79,6 +80,8 @@ export default function SideMenu({ open, onClose }: Props) {
           </div>
           <button
             onClick={onClose}
+            title="Cerrar menú"
+            aria-label="Cerrar menú"
             className="p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors lg:hidden"
           >
             <X className="w-5 h-5" />

@@ -19,7 +19,7 @@ interface SaleRecord {
   precio_unitario: number;
   total: number;
   fecha: string;
-  productos: { nombre: string } | null;
+  productos: { nombre: string; precio_compra: number } | null;
 }
 
 export default function SalesPage() {
@@ -35,7 +35,7 @@ export default function SalesPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from("ventas")
-      .select("id, producto_id, cantidad, precio_unitario, total, fecha, productos(nombre)")
+      .select("id, producto_id, cantidad, precio_unitario, total, fecha, productos(nombre, precio_compra)")
       .order("fecha", { ascending: false })
       .limit(50);
     setSales((data as any) ?? []);
@@ -131,6 +131,10 @@ export default function SalesPage() {
         ) : (
           <div className="space-y-2">
             {sales.map((s) => (
+              (() => {
+                const estimatedCost = (s.productos?.precio_compra ?? 0) * s.cantidad;
+                const estimatedProfit = s.total - estimatedCost;
+                return (
               <div
                 key={s.id}
                 className="bg-zinc-900/80 rounded-xl p-3.5 border border-zinc-800/50 flex items-center gap-3 hover:bg-zinc-900 transition-colors group"
@@ -145,6 +149,9 @@ export default function SalesPage() {
                   <p className="text-xs text-zinc-500 mt-0.5">
                     {s.cantidad} uds · {formatDateTime(s.fecha)}
                   </p>
+                  <p className={`text-[11px] mt-0.5 ${estimatedProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    Ganancia: {formatBs(estimatedProfit)}
+                  </p>
                 </div>
                 <p className="text-sm font-bold text-emerald-400 shrink-0">
                   +{formatBs(s.total)}
@@ -157,6 +164,8 @@ export default function SalesPage() {
                   <Undo2 className="w-4 h-4" />
                 </button>
               </div>
+                );
+              })()
             ))}
           </div>
         )}

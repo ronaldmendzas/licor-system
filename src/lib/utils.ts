@@ -65,3 +65,23 @@ export function getStartOfMonth(): string {
   const today = new Date();
   return new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
 }
+
+export function getNightRange(now: Date = new Date()): { from: string; to: string } {
+  const start = new Date(now);
+  const end = new Date(now);
+
+  if (now.getHours() < 6) {
+    start.setDate(start.getDate() - 1);
+    start.setHours(18, 0, 0, 0);
+    end.setHours(6, 0, 0, 0);
+  } else {
+    start.setHours(18, 0, 0, 0);
+    end.setDate(end.getDate() + 1);
+    end.setHours(6, 0, 0, 0);
+  }
+
+  return {
+    from: start.toISOString(),
+    to: end.toISOString(),
+  };
+}
