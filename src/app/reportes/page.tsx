@@ -58,11 +58,12 @@ export default function ReportsPage() {
       ]);
 
       const totalSales = (sales ?? []).reduce(
-        (sum, s: any) => sum + (s.total ?? 0),
+        (sum: number, s: { total: number | null }) => sum + (s.total ?? 0),
         0
       );
       const totalArrivals = (arrivals ?? []).reduce(
-        (sum, a: any) => sum + a.precio_compra * a.cantidad,
+        (sum: number, a: { precio_compra: number | null; cantidad: number | null }) =>
+          sum + (a.precio_compra ?? 0) * (a.cantidad ?? 0),
         0
       );
 
